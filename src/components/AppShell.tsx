@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles, Scissors, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
@@ -61,6 +61,12 @@ export function AppShell() {
               <div className="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider opacity-60">الإدارة</div>
               <Link to="/pricing" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/pricing") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
                 <DollarSign className="size-4" /> قواعد التسعير
+              </Link>
+              <Link to="/finishing" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/finishing") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+                <Scissors className="size-4" /> خدمات التشطيبات
+              </Link>
+              <Link to="/import" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/import") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+                <FileSpreadsheet className="size-4" /> استيراد Excel
               </Link>
               <Link to="/settings" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/settings") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
                 <Settings className="size-4" /> إعدادات الشركة
