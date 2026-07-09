@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, FileText, Eye, ShieldAlert, Clock, X } from "lucide-react";
 import { currency, dateAr } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/quotations")({
+export const Route = createFileRoute("/_authenticated/quotations/")({
   head: () => ({ meta: [{ title: "عروض الأسعار — Elsewedy Smart Quotation" }] }),
   component: QuotationsPage,
 });
