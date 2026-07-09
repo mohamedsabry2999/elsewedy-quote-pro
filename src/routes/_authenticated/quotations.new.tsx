@@ -72,6 +72,23 @@ function WizardPage() {
   const [colors, setColors] = useState<number>(4);
   const [specialInks, setSpecialInks] = useState(0);
 
+  // Packaging specs (cm)
+  const [boxL, setBoxL] = useState(15);
+  const [boxW, setBoxW] = useState(5);
+  const [boxH, setBoxH] = useState(20);
+  const [hasDieCut, setHasDieCut] = useState(true);
+  const [hasGluing, setHasGluing] = useState(true);
+
+  // Label specs (mm)
+  const [labelW, setLabelW] = useState(60);
+  const [labelH, setLabelH] = useState(40);
+  const [labelMethod, setLabelMethod] = useState<"digital" | "flexo">("digital");
+  const [labelForm, setLabelForm] = useState<"roll" | "sheet">("roll");
+  const [laminateKey, setLaminateKey] = useState<string>("");
+
+  // Finishing-only service
+  const [finishingSheetsCount, setFinishingSheetsCount] = useState(1000);
+
   // Material
   const [paperKey, setPaperKey] = useState("coated_300gsm");
 
@@ -105,19 +122,44 @@ function WizardPage() {
   const minMargin = rules["margin.minimum_pct"] ?? 12;
   const maxDiscount = rules["discount.max_pct"] ?? 10;
 
+  const isPackaging = ["folding_cartons", "paper_packaging", "pharma", "cosmetics", "food"].includes(category);
+  const isLabels = category === "labels";
+  const isFinishingOnly = category === "finishing_only";
+  const isOffset = category === "offset";
+  const isDigital = category === "digital" || category === "marketing" || category === "custom";
+
   useEffect(() => {
     setMarginPct(rules["margin.default_pct"] ?? 25);
   }, [rules]);
 
   const breakdown: PricingBreakdown = useMemo(() => {
-    if (category === "offset") {
+    if (isPackaging) {
+      return calcPackaging({
+        quantity, boxLengthCm: boxL, boxWidthCm: boxW, boxHeightCm: boxH,
+        boardKey: paperKey, colors, printingSides, finishingKeys,
+        hasDieCut, hasGluing, marginPct, discountPct,
+      }, rules);
+    }
+    if (isLabels) {
+      return calcLabels({
+        quantity, labelWidthMm: labelW, labelHeightMm: labelH,
+        materialKey: paperKey, method: labelMethod, colors,
+        laminateKey: laminateKey || undefined, hasDieCut, form: labelForm,
+        marginPct, discountPct,
+      }, rules);
+    }
+    if (isFinishingOnly) {
+      return calcFinishingOnly({ sheetsCount: finishingSheetsCount, finishingKeys, marginPct, discountPct }, rules);
+    }
+    if (isOffset) {
       return calcOffset({ quantity, copiesPerSheet, paperKey, colors, printingSides, finishingKeys, marginPct, discountPct }, rules);
     }
     return calcDigital({
       sheetSize, copiesPerSheet, quantity, paperKey, printingSides, colors: (colors as 1 | 4),
       specialInks, finishingKeys, marginPct, discountPct,
     }, rules);
-  }, [category, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules]);
+  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, laminateKey, finishingSheetsCount]);
+
 
   const approvalRequired = marginPct < minMargin || discountPct > maxDiscount;
 
