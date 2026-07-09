@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles, Scissors, FileSpreadsheet } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles, Scissors, FileSpreadsheet, Factory } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 const nav = [
   { to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم" },
   { to: "/quotations", icon: FileText, label: "عروض الأسعار" },
+  { to: "/job-orders", icon: Factory, label: "أوامر التشغيل" },
   { to: "/customers", icon: Users, label: "العملاء" },
 ] as const;
 
