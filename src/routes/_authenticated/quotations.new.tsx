@@ -272,14 +272,59 @@ function WizardPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1"><Label>عنوان المنتج *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: كتالوج شركة — 24 صفحة" /></div>
                 <div className="col-span-2 space-y-1"><Label>وصف مختصر</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
-                <div className="space-y-1"><Label>مقاس الفرخ</Label>
-                  <select className="w-full h-10 rounded-md border bg-transparent px-3" value={sheetSize} onChange={(e) => setSheetSize(e.target.value as any)}>
-                    <option value="50x70">50×70 (HP Indigo 12K)</option>
-                    <option value="33x48">33×48</option>
-                    <option value="custom">مخصص</option>
-                  </select>
-                </div>
-                <div className="space-y-1"><Label>عدد النسخ في الفرخ</Label><Input type="number" min={1} value={copiesPerSheet} onChange={(e) => setCopiesPerSheet(Math.max(1, +e.target.value))} /></div>
+
+                {isPackaging && (<>
+                  <div className="col-span-2 text-xs text-muted-foreground rounded-lg bg-accent p-3">
+                    أدخل أبعاد العلبة (الطول × العرض × الارتفاع) بالسنتيمتر. سيقوم النظام بحساب مسطح الفرد وعدد النسخ من فرخ 70×100.
+                  </div>
+                  <div className="space-y-1"><Label>الطول L (سم)</Label><Input type="number" min={1} value={boxL} onChange={(e) => setBoxL(Math.max(1, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>العرض W (سم)</Label><Input type="number" min={1} value={boxW} onChange={(e) => setBoxW(Math.max(1, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>الارتفاع H (سم)</Label><Input type="number" min={1} value={boxH} onChange={(e) => setBoxH(Math.max(1, +e.target.value))} /></div>
+                  <div className="flex items-center gap-4 col-span-2">
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={hasDieCut} onCheckedChange={(v) => setHasDieCut(!!v)} /> تقطيع سكيني (Die-cut)</label>
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={hasGluing} onCheckedChange={(v) => setHasGluing(!!v)} /> تلصيق (Gluing)</label>
+                  </div>
+                </>)}
+
+                {isLabels && (<>
+                  <div className="col-span-2 text-xs text-muted-foreground rounded-lg bg-accent p-3">
+                    ملصقات وستيكرز — أدخل مقاس الملصق بالميليمتر واختر الطريقة والشكل النهائي.
+                  </div>
+                  <div className="space-y-1"><Label>عرض الملصق (مم)</Label><Input type="number" min={5} value={labelW} onChange={(e) => setLabelW(Math.max(5, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>ارتفاع الملصق (مم)</Label><Input type="number" min={5} value={labelH} onChange={(e) => setLabelH(Math.max(5, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>طريقة الطباعة</Label>
+                    <select className="w-full h-10 rounded-md border bg-transparent px-3" value={labelMethod} onChange={(e) => setLabelMethod(e.target.value as any)}>
+                      <option value="digital">ديجيتال</option>
+                      <option value="flexo">فليكسو</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1"><Label>الشكل</Label>
+                    <select className="w-full h-10 rounded-md border bg-transparent px-3" value={labelForm} onChange={(e) => setLabelForm(e.target.value as any)}>
+                      <option value="roll">رول (Roll)</option>
+                      <option value="sheet">أفرخ (Sheet)</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm col-span-2"><Checkbox checked={hasDieCut} onCheckedChange={(v) => setHasDieCut(!!v)} /> تقطيع سكيني (Die-cut)</label>
+                </>)}
+
+                {isFinishingOnly && (
+                  <div className="col-span-2 space-y-1">
+                    <Label>عدد الأفرخ المستلمة من العميل</Label>
+                    <Input type="number" min={1} value={finishingSheetsCount} onChange={(e) => setFinishingSheetsCount(Math.max(1, +e.target.value))} />
+                    <p className="text-xs text-muted-foreground">خدمة تشطيبات على أفرخ العميل (بدون طباعة أو ورق). اختر التشطيبات في خطوة "التشطيبات".</p>
+                  </div>
+                )}
+
+                {!isPackaging && !isLabels && !isFinishingOnly && (<>
+                  <div className="space-y-1"><Label>مقاس الفرخ</Label>
+                    <select className="w-full h-10 rounded-md border bg-transparent px-3" value={sheetSize} onChange={(e) => setSheetSize(e.target.value as any)}>
+                      <option value="50x70">50×70 (HP Indigo 12K)</option>
+                      <option value="33x48">33×48</option>
+                      <option value="custom">مخصص</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1"><Label>عدد النسخ في الفرخ</Label><Input type="number" min={1} value={copiesPerSheet} onChange={(e) => setCopiesPerSheet(Math.max(1, +e.target.value))} /></div>
+                </>)}
               </div>
             )}
             {step === 3 && (
