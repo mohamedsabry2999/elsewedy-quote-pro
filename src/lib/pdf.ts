@@ -109,16 +109,23 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     <tr><td>الخصم</td><td>${currency(quotation.discount)}</td></tr>
   ` : "";
 
+  const primary = company.brand_primary || "#1c2b58";
+  const primaryEnd = company.brand_primary_end || "#3b5199";
+  const accent = company.brand_accent || "#b48a3b";
+
   container.innerHTML = `
-    <div style="border-bottom:3px solid #b48a3b; padding-bottom:16px; display:flex; justify-content:space-between; align-items:flex-start;">
-      <div>
-        <div style="font-size:22px; font-weight:800; color:#1c2b58;">${company.name}</div>
-        <div style="font-size:12px; color:#5a6788; margin-top:2px;">${company.name_en}</div>
-        <div style="font-size:11px; color:#5a6788; margin-top:6px;">${company.address}</div>
-        <div style="font-size:11px; color:#5a6788;" dir="ltr">${company.phone} • ${company.email} • ${company.website}</div>
+    <div style="border-bottom:3px solid ${accent}; padding-bottom:16px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+      <div style="display:flex; gap:14px; align-items:flex-start;">
+        ${company.logo_data_url ? `<img src="${company.logo_data_url}" alt="logo" style="max-height:70px; max-width:180px; object-fit:contain;" />` : ""}
+        <div>
+          <div style="font-size:22px; font-weight:800; color:${primary};">${company.name}</div>
+          <div style="font-size:12px; color:#5a6788; margin-top:2px;">${company.name_en}</div>
+          <div style="font-size:11px; color:#5a6788; margin-top:6px;">${company.address}</div>
+          <div style="font-size:11px; color:#5a6788;" dir="ltr">${company.phone} • ${company.email} • ${company.website}</div>
+        </div>
       </div>
       <div style="text-align:left;">
-        <div style="background:linear-gradient(135deg,#1c2b58,#3b5199); color:#fff; padding:10px 14px; border-radius:10px; min-width:180px;">
+        <div style="background:linear-gradient(135deg,${primary},${primaryEnd}); color:#fff; padding:10px 14px; border-radius:10px; min-width:180px;">
           <div style="font-size:11px; opacity:.85;">رقم عرض السعر</div>
           <div style="font-size:18px; font-weight:800; font-family:monospace;">${quotation.quotation_number}</div>
           <div style="font-size:11px; opacity:.85; margin-top:4px;">${dateAr(quotation.created_at)}</div>
@@ -126,6 +133,7 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
         ${variant === "internal" ? '<div style="margin-top:8px; text-align:center; background:#fef3c7; color:#7c5b12; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px;">نسخة داخلية — لا تُشارك مع العميل</div>' : ""}
       </div>
     </div>
+
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
       <div style="background:#f5f6fa; border-radius:10px; padding:14px;">
