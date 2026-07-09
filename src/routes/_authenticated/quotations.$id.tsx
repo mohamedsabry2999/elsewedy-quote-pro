@@ -122,7 +122,7 @@ function QuotationDetail() {
       const breakdown = (q.specs as any)?.breakdown ?? undefined;
       const blob = await generateQuotationPdf({
         quotation: q, customer: (q as any).customers, items, breakdown,
-        company: DEFAULT_COMPANY, variant,
+        company: loadCompanySettings(), variant,
         salesRepName: (q as any).profiles?.full_name,
       });
       const url = URL.createObjectURL(blob);
