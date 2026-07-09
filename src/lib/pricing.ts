@@ -20,9 +20,31 @@ export interface PricingBreakdown {
   profit: number;
   subtotal: number;
   discount: number;
+  priceBeforeTax: number;
+  taxAmount: number;
+  taxPct: number;
+  taxEnabled: boolean;
   finalPrice: number;
   sheetsNeeded: number;
   wastePct: number;
+}
+
+export interface TaxOptions {
+  taxEnabled?: boolean;
+  taxPct?: number;
+}
+
+/** Apply VAT to a partial breakdown; returns fully-populated PricingBreakdown. */
+export function applyTax<T extends Omit<PricingBreakdown, "priceBeforeTax" | "taxAmount" | "taxPct" | "taxEnabled" | "finalPrice">>(
+  b: T,
+  opts: TaxOptions,
+): PricingBreakdown {
+  const priceBeforeTax = b.subtotal - b.discount;
+  const taxEnabled = opts.taxEnabled ?? true;
+  const taxPct = opts.taxPct ?? 14;
+  const taxAmount = taxEnabled ? priceBeforeTax * (taxPct / 100) : 0;
+  const finalPrice = priceBeforeTax + taxAmount;
+  return { ...b, priceBeforeTax, taxAmount, taxPct, taxEnabled, finalPrice };
 }
 
 /* ============================== Digital ============================== */
