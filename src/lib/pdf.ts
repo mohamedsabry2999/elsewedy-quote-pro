@@ -1,218 +1,259 @@
-// PDF generation for Elsewedy quotations. Uses jsPDF + autoTable.
-// Because embedding an Arabic TTF at runtime is heavy, we render Arabic text
-// as inline SVG via a canvas-to-image pipeline for the header/title, but keep
-// tabular content in Arabic using the default helvetica font with Unicode.
-// jsPDF supports Unicode when a font that contains the glyphs is embedded.
-// We embed Cairo-Regular from @fontsource/cairo at runtime.
-
+// PDF generation for Elsewedy quotations — multi-item, brand-aware, smart pagination.
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { currency, dateAr, number, percent } from "./format";
-import type { PricingBreakdown } from "./pricing";
-
-export interface CompanySettings {
-  name: string;
-  name_en: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  tax_number?: string;
-  terms?: string;
-  footer?: string;
-  logo_data_url?: string;
-  brand_primary?: string;
-  brand_primary_end?: string;
-  brand_accent?: string;
-}
-
-export const DEFAULT_COMPANY: CompanySettings = {
-  name: "مطبعة السويدي",
-  name_en: "Elsewedy Print House",
-  address: "المنطقة الصناعية، العاشر من رمضان، الشرقية، مصر",
-  phone: "+20 100 000 0000",
-  email: "info@elsewedy-print.com",
-  website: "www.elsewedy-print.com",
-  terms: "الأسعار سارية خلال فترة الصلاحية الموضحة أدناه. تُحتسب أي تعديلات على المواصفات في السعر النهائي.",
-  footer: "شكراً لاختياركم Elsewedy Print House — نلتزم بأعلى معايير الجودة والدقة في التسليم.",
-  brand_primary: "#1c2b58",
-  brand_primary_end: "#3b5199",
-  brand_accent: "#b48a3b",
-};
-
-export function loadCompanySettings(): CompanySettings {
-  if (typeof window === "undefined") return DEFAULT_COMPANY;
-  try {
-    const saved = localStorage.getItem("elsewedy-company");
-    return saved ? { ...DEFAULT_COMPANY, ...JSON.parse(saved) } : DEFAULT_COMPANY;
-  } catch {
-    return DEFAULT_COMPANY;
-  }
-}
-
-let cairoBase64Cache: string | null = null;
-async function loadCairoFont(): Promise<string> {
-  if (cairoBase64Cache) return cairoBase64Cache;
-  const url = new URL("@fontsource/cairo/files/cairo-arabic-500-normal.woff", import.meta.url);
-  const res = await fetch(url.toString());
-  const buf = await res.arrayBuffer();
-  let bin = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-  cairoBase64Cache = btoa(bin);
-  return cairoBase64Cache;
-}
+import type { BrandSettings } from "./brand";
 
 export interface QuotationPdfInput {
   quotation: any;
   customer: any;
   items: any[];
-  breakdown?: Partial<PricingBreakdown>;
-  company: CompanySettings;
+  brand: BrandSettings;
   variant: "customer" | "internal";
   salesRepName?: string | null;
 }
 
-// Fallback approach: since embedding+shaping Arabic in jsPDF is fragile in Workers,
-// we render the PDF using an HTML source printed via window.print, but for
-// programmatic PDF we build a canvas per page. To keep this reliable and fast,
-// we generate an HTML document and use jsPDF's html() method with proper RTL.
+/** Cairo/Egypt-time WhatsApp greeting per user spec */
+export function whatsappMessage(
+  customerName: string,
+  quotationNumber: string,
+  companyEn: string,
+  egyptTz = "Africa/Cairo",
+): string {
+  const now = new Date();
+  const hourStr = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: egyptTz }).format(now);
+  const hour = parseInt(hourStr, 10);
+  const greeting = hour < 12 ? "صباح الخير" : "مساء الخير";
+  return `${greeting} أستاذ/ة ${customerName}\n\nمرفق لحضرتك عرض السعر الخاص بـ ${quotationNumber} من ${companyEn}.\n\nبرجاء المراجعة، ويسعدنا الرد على أي استفسار من حضرتك.\n\nتحياتنا،\n${companyEn}`;
+}
+
+export function whatsappLink(phone: string, message: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+function itemSpecsBlock(it: any): string {
+  const specs = it.specs ?? {};
+  const rows: string[] = [];
+  const push = (label: string, val: any) => { if (val !== undefined && val !== null && val !== "" && val !== 0) rows.push(`<div><span class="lbl">${label}:</span> ${val}</div>`); };
+  push("الفئة", it.category);
+  push("المقاس", it.size);
+  push("المادة", it.material);
+  push("GSM", it.gsm);
+  push("طريقة الطباعة", it.printing_method);
+  push("الأوجه", it.printing_sides);
+  push("الألوان", it.colors);
+  if (Array.isArray(it.finishing_options) && it.finishing_options.length) {
+    rows.push(`<div><span class="lbl">التشطيبات:</span> ${it.finishing_options.join("، ")}</div>`);
+  }
+  if (specs.notes) push("ملاحظات", specs.notes);
+  if (it.customer_notes) push("ملاحظات للعميل", it.customer_notes);
+  return rows.length ? `<div class="specs">${rows.join("")}</div>` : "";
+}
+
+function internalCostBlock(it: any, primary: string): string {
+  const cb = it.cost_breakdown ?? {};
+  const entries = Object.entries(cb).filter(([, v]) => typeof v === "number" && v !== 0);
+  if (!entries.length && !it.unit_cost) return "";
+  const rows = entries.map(([k, v]) => `<tr><td>${labelCost(k)}</td><td>${currency(v as number)}</td></tr>`).join("");
+  return `<div class="internal">
+    <div class="internal-title" style="color:${primary}">تحليل التكلفة الداخلية</div>
+    <table class="internal-table">${rows}${it.unit_cost ? `<tr><td>تكلفة الوحدة</td><td>${currency(it.unit_cost)}</td></tr>` : ""}</table>
+    ${it.profit_margin_pct ? `<div class="internal-small">هامش الربح: ${percent(it.profit_margin_pct)}</div>` : ""}
+    ${it.internal_notes ? `<div class="internal-small"><b>ملاحظات داخلية:</b> ${it.internal_notes}</div>` : ""}
+  </div>`;
+}
+
+function labelCost(k: string): string {
+  const m: Record<string, string> = {
+    paperCost: "تكلفة الورق", printingCost: "تكلفة الطباعة", finishingCost: "تكلفة التشطيبات",
+    setupCost: "تكلفة الضبط", wasteCost: "تكلفة الهالك", specialInkCost: "أحبار خاصة",
+    packagingCost: "تكلفة التغليف", deliveryCost: "تكلفة التسليم", totalCost: "إجمالي التكلفة",
+  };
+  return m[k] ?? k;
+}
 
 export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Blob> {
-  const { quotation, customer, items, breakdown, company, variant, salesRepName } = input;
+  const { quotation, customer, items, brand, variant, salesRepName } = input;
 
-  // Build an HTML document; jsPDF's html() renders via html2canvas for full unicode+RTL fidelity.
   const container = document.createElement("div");
   container.setAttribute("dir", "rtl");
   container.style.width = "800px";
-  container.style.padding = "40px";
+  container.style.padding = "36px 40px";
   container.style.fontFamily = "'Cairo', 'Tajawal', Arial, sans-serif";
-  container.style.color = "#0f1936";
+  container.style.color = "#1a1a1a";
   container.style.background = "#ffffff";
-  container.style.fontSize = "13px";
-  container.style.lineHeight = "1.6";
+  container.style.fontSize = "12.5px";
+  container.style.lineHeight = "1.55";
 
   const qrUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/quotations/${quotation.id}`;
-  const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 0, width: 90 });
+  const qrDataUrl = brand.show_qr ? await QRCode.toDataURL(qrUrl, { margin: 0, width: 90 }) : "";
 
-  const finishingsAr = (quotation.specs?.finishingKeys ?? []).join("، ");
+  const primary = brand.primary_color || "#C8102E";
+  const secondary = brand.secondary_color || "#EE5A24";
+  const accent = brand.accent_color || "#2C3E50";
 
-  const internalRows = variant === "internal" && breakdown ? `
-    <tr><td>تكلفة الورق</td><td>${currency(breakdown.paperCost ?? 0)}</td></tr>
-    <tr><td>تكلفة الطباعة</td><td>${currency(breakdown.printingCost ?? 0)}</td></tr>
-    <tr><td>تكلفة التشطيبات</td><td>${currency(breakdown.finishingCost ?? 0)}</td></tr>
-    <tr><td>تكلفة الضبط</td><td>${currency(breakdown.setupCost ?? 0)}</td></tr>
-    <tr><td>إجمالي التكلفة</td><td><b>${currency(breakdown.totalCost ?? 0)}</b></td></tr>
-    <tr><td>الربح</td><td>${currency(breakdown.profit ?? 0)}</td></tr>
-    <tr><td>هامش الربح ٪</td><td>${percent(quotation.profit_margin_pct)}</td></tr>
-    <tr><td>الخصم</td><td>${currency(quotation.discount)}</td></tr>
-  ` : "";
+  const subtotal = Number(quotation.subtotal ?? 0);
+  const discount = Number(quotation.discount ?? 0);
+  const taxAmount = Number(quotation.tax_amount ?? 0);
+  const taxPct = Number(quotation.tax_pct ?? 0);
+  const taxEnabled = !!quotation.tax_enabled;
+  const finalPrice = Number(quotation.final_price ?? 0);
 
-  const primary = company.brand_primary || "#1c2b58";
-  const primaryEnd = company.brand_primary_end || "#3b5199";
-  const accent = company.brand_accent || "#b48a3b";
+  const itemsHtml = items.map((it: any, i: number) => `
+    <div class="item">
+      <div class="item-head">
+        <div class="item-title">
+          <span class="item-no">بند ${it.item_number ?? i + 1}</span>
+          <span>${it.title ?? "—"}</span>
+        </div>
+        <div class="item-qty">${number(it.quantity)} ${it.unit ?? "قطعة"}</div>
+      </div>
+      ${it.description ? `<div class="item-desc">${it.description}</div>` : ""}
+      ${itemSpecsBlock(it)}
+      <table class="item-price">
+        <tr>
+          <td>الكمية</td><td>${number(it.quantity)}</td>
+          <td>سعر الوحدة</td><td>${currency(it.unit_price)}</td>
+          <td>الإجمالي</td><td class="grand">${currency(it.total_price)}</td>
+        </tr>
+      </table>
+      ${variant === "internal" ? internalCostBlock(it, primary) : ""}
+    </div>
+  `).join("");
 
   container.innerHTML = `
-    <div style="border-bottom:3px solid ${accent}; padding-bottom:16px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
-      <div style="display:flex; gap:14px; align-items:flex-start;">
-        ${company.logo_data_url ? `<img src="${company.logo_data_url}" alt="logo" style="max-height:70px; max-width:180px; object-fit:contain;" />` : ""}
+    <style>
+      * { box-sizing: border-box; }
+      .head { border-bottom: 3px solid ${secondary}; padding-bottom: 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+      .brand-block { display:flex; gap:14px; align-items:flex-start; }
+      .brand-block img { max-height: 72px; max-width: 220px; object-fit: contain; }
+      .brand-name { font-size: 20px; font-weight: 800; color: ${primary}; }
+      .brand-name-en { font-size: 12px; color:#6b7280; margin-top: 2px; }
+      .brand-meta { font-size: 10.5px; color:#6b7280; margin-top: 6px; }
+      .quote-card { background: linear-gradient(135deg, ${primary}, ${secondary}); color:#fff; padding:10px 14px; border-radius:10px; min-width:200px; }
+      .quote-card .k { font-size:10px; opacity:.85; }
+      .quote-card .v { font-size:18px; font-weight:800; font-family: 'Courier New', monospace; }
+      .internal-badge { margin-top:8px; text-align:center; background:#fef3c7; color:#7c5b12; font-size:10px; font-weight:700; padding:4px 8px; border-radius:6px; }
+
+      .info { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+      .info .box { background:#f8f4f2; border-right:3px solid ${primary}; border-radius:8px; padding:12px; }
+      .info .lbl { font-size:10px; color:#6b7280; margin-bottom:4px; }
+      .info .name { font-weight:700; font-size:13px; }
+      .info .line { font-size:11px; color:#6b7280; margin-top:2px; }
+
+      .section-title { font-size:13px; font-weight:700; color:${primary}; border-right:4px solid ${secondary}; padding-right:10px; margin: 18px 0 8px; }
+
+      .item { border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; overflow:hidden; page-break-inside: avoid; break-inside: avoid; }
+      .item-head { background: linear-gradient(135deg, ${primary}08, ${secondary}12); padding:8px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e5e7eb; }
+      .item-title { display:flex; gap:8px; align-items:center; font-weight:700; font-size:13px; color: ${accent}; }
+      .item-no { background:${primary}; color:#fff; padding:2px 8px; border-radius:6px; font-size:10.5px; font-weight:700; }
+      .item-qty { font-size:11.5px; color: ${primary}; font-weight:700; }
+      .item-desc { padding: 8px 12px 0; font-size:11.5px; color:#4b5563; }
+      .specs { padding: 8px 12px; font-size:11px; color:#374151; display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
+      .specs .lbl { color:#6b7280; }
+      .item-price { width:100%; border-top:1px dashed #e5e7eb; margin-top:6px; font-size:11.5px; }
+      .item-price td { padding: 8px 12px; }
+      .item-price td:nth-child(odd) { color:#6b7280; font-size:10.5px; }
+      .item-price td.grand { color:${primary}; font-weight:800; font-size:13px; }
+      .internal { margin: 0 12px 12px; background:#fefce8; border:1px dashed #d4b34a; border-radius:8px; padding:8px 10px; }
+      .internal-title { font-size:11px; font-weight:700; margin-bottom:4px; }
+      .internal-table { width:100%; font-size:10.5px; }
+      .internal-table td { padding: 2px 0; }
+      .internal-small { font-size:10px; color:#7c5b12; margin-top:4px; }
+
+      .totals { margin-top:14px; display:flex; justify-content:flex-end; page-break-inside: avoid; }
+      .totals-box { min-width:320px; }
+      .totals-row { display:flex; justify-content:space-between; padding:5px 10px; font-size:12px; }
+      .totals-row.discount { color:#b91c1c; }
+      .totals-final { background: linear-gradient(135deg, ${primary}, ${secondary}); color:#fff; padding:12px 14px; border-radius:10px; margin-top:8px; display:flex; justify-content:space-between; align-items:center; }
+      .totals-final .k { font-size:11px; opacity:.9; }
+      .totals-final .v { font-size:20px; font-weight:800; }
+
+      .terms { margin-top:16px; page-break-inside: avoid; }
+      .terms-body { font-size:10.5px; color:#4b5563; }
+
+      .footer { margin-top:22px; display:flex; justify-content:space-between; align-items:center; border-top:2px solid ${primary}; padding-top:12px; page-break-inside: avoid; }
+      .footer-txt { font-size:9.5px; color:#6b7280; }
+      .bank { margin-top:8px; padding:8px 10px; background:#f8f4f2; border-radius:6px; font-size:10px; color:#374151; }
+    </style>
+
+    <div class="head">
+      <div class="brand-block">
+        ${brand.logo_url ? `<img src="${brand.logo_url}" alt="logo" />` : ""}
         <div>
-          <div style="font-size:22px; font-weight:800; color:${primary};">${company.name}</div>
-          <div style="font-size:12px; color:#5a6788; margin-top:2px;">${company.name_en}</div>
-          <div style="font-size:11px; color:#5a6788; margin-top:6px;">${company.address}</div>
-          <div style="font-size:11px; color:#5a6788;" dir="ltr">${company.phone} • ${company.email} • ${company.website}</div>
+          <div class="brand-name">${brand.company_name_ar}</div>
+          <div class="brand-name-en">${brand.company_name_en}</div>
+          <div class="brand-meta">${brand.address ?? ""}</div>
+          <div class="brand-meta" dir="ltr">${[brand.phone, brand.email, brand.website].filter(Boolean).join(" • ")}</div>
+          ${brand.tax_number ? `<div class="brand-meta">الرقم الضريبي: ${brand.tax_number}</div>` : ""}
         </div>
       </div>
-      <div style="text-align:left;">
-        <div style="background:linear-gradient(135deg,${primary},${primaryEnd}); color:#fff; padding:10px 14px; border-radius:10px; min-width:180px;">
-          <div style="font-size:11px; opacity:.85;">رقم عرض السعر</div>
-          <div style="font-size:18px; font-weight:800; font-family:monospace;">${quotation.quotation_number}</div>
-          <div style="font-size:11px; opacity:.85; margin-top:4px;">${dateAr(quotation.created_at)}</div>
+      <div>
+        <div class="quote-card">
+          <div class="k">رقم عرض السعر</div>
+          <div class="v">${quotation.quotation_number}</div>
+          <div class="k" style="margin-top:4px;">${dateAr(quotation.created_at)}</div>
         </div>
-        ${variant === "internal" ? '<div style="margin-top:8px; text-align:center; background:#fef3c7; color:#7c5b12; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px;">نسخة داخلية — لا تُشارك مع العميل</div>' : ""}
+        ${variant === "internal" ? '<div class="internal-badge">نسخة داخلية — لا تُشارك مع العميل</div>' : ""}
       </div>
     </div>
 
-
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
-      <div style="background:#f5f6fa; border-radius:10px; padding:14px;">
-        <div style="font-size:11px; color:#7482a4; margin-bottom:6px;">بيانات العميل</div>
-        <div style="font-weight:700; font-size:14px;">${customer?.company_name ?? "—"}</div>
-        ${customer?.contact_person ? `<div style="font-size:12px; margin-top:2px;">${customer.contact_person}</div>` : ""}
-        ${customer?.phone ? `<div style="font-size:11px; color:#5a6788;" dir="ltr">${customer.phone}</div>` : ""}
-        ${customer?.email ? `<div style="font-size:11px; color:#5a6788;" dir="ltr">${customer.email}</div>` : ""}
+    <div class="info">
+      <div class="box">
+        <div class="lbl">بيانات العميل</div>
+        <div class="name">${customer?.company_name ?? "—"}</div>
+        ${customer?.contact_person ? `<div class="line">${customer.contact_person}</div>` : ""}
+        ${customer?.phone ? `<div class="line" dir="ltr">${customer.phone}</div>` : ""}
+        ${customer?.email ? `<div class="line" dir="ltr">${customer.email}</div>` : ""}
       </div>
-      <div style="background:#f5f6fa; border-radius:10px; padding:14px;">
-        <div style="font-size:11px; color:#7482a4; margin-bottom:6px;">تفاصيل العرض</div>
-        <div style="font-size:12px;"><b>مدة التسليم:</b> ${quotation.delivery_days ?? "—"} يوم</div>
-        <div style="font-size:12px;"><b>صلاحية العرض:</b> ${quotation.validity_days ?? 30} يوم</div>
-        <div style="font-size:12px;"><b>شروط الدفع:</b> ${quotation.payment_terms ?? "—"}</div>
-        ${salesRepName ? `<div style="font-size:12px;"><b>المندوب:</b> ${salesRepName}</div>` : ""}
+      <div class="box">
+        <div class="lbl">تفاصيل العرض</div>
+        <div class="line"><b>عدد البنود:</b> ${items.length}</div>
+        <div class="line"><b>مدة التسليم:</b> ${quotation.delivery_days ?? "—"} يوم</div>
+        <div class="line"><b>صلاحية العرض:</b> ${quotation.validity_days ?? brand.default_validity_days} يوم</div>
+        <div class="line"><b>شروط الدفع:</b> ${quotation.payment_terms ?? brand.default_payment_terms}</div>
+        ${salesRepName ? `<div class="line"><b>المندوب:</b> ${salesRepName}</div>` : ""}
       </div>
     </div>
 
-    <div style="margin-top:20px;">
-      <div style="font-size:13px; font-weight:700; color:${primary}; border-right:4px solid ${accent}; padding-right:10px; margin-bottom:8px;">تفاصيل المنتج</div>
-      <table style="width:100%; border-collapse:collapse; font-size:12px;">
-        <thead>
-          <tr style="background:${primary}; color:#fff;">
-            <th style="padding:10px; text-align:right;">الوصف</th>
-            <th style="padding:10px; text-align:center; width:80px;">الكمية</th>
-            <th style="padding:10px; text-align:center; width:110px;">سعر الوحدة</th>
-            <th style="padding:10px; text-align:center; width:120px;">الإجمالي</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items.map((it) => `
-            <tr style="border-bottom:1px solid #e5e8f0;">
-              <td style="padding:10px;">
-                <div style="font-weight:700;">${it.title ?? "—"}</div>
-                ${it.description ? `<div style="font-size:11px; color:#5a6788; margin-top:2px;">${it.description}</div>` : ""}
-                ${finishingsAr ? `<div style="font-size:11px; color:#5a6788; margin-top:2px;">التشطيبات: ${finishingsAr}</div>` : ""}
-              </td>
-              <td style="padding:10px; text-align:center;">${number(it.quantity)}</td>
-              <td style="padding:10px; text-align:center;">${currency(it.unit_price)}</td>
-              <td style="padding:10px; text-align:center; font-weight:700;">${currency(it.total_price)}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
+    <div class="section-title">بنود عرض السعر</div>
+    ${itemsHtml}
 
-    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
-      <div style="min-width:280px;">
-        <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:12px;"><span>المجموع قبل الخصم</span><b>${currency(quotation.subtotal)}</b></div>
-        ${Number(quotation.discount) > 0 ? `<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:12px; color:#b91c1c;"><span>الخصم</span><b>- ${currency(quotation.discount)}</b></div>` : ""}
-        <div style="background:linear-gradient(135deg,${primary},${primaryEnd}); color:#fff; padding:12px 14px; border-radius:10px; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; opacity:.9;">السعر النهائي</span>
-          <span style="font-size:20px; font-weight:800;">${currency(quotation.final_price)}</span>
+    <div class="totals">
+      <div class="totals-box">
+        <div class="totals-row"><span>المجموع قبل الخصم</span><b>${currency(subtotal)}</b></div>
+        ${discount > 0 ? `<div class="totals-row discount"><span>الخصم</span><b>- ${currency(discount)}</b></div>` : ""}
+        ${taxEnabled && taxAmount > 0 ? `<div class="totals-row"><span>الضريبة (${percent(taxPct)})</span><b>${currency(taxAmount)}</b></div>` : ""}
+        <div class="totals-final">
+          <span class="k">السعر النهائي ${taxEnabled ? "(شامل الضريبة)" : ""}</span>
+          <span class="v">${currency(finalPrice)}</span>
         </div>
       </div>
     </div>
 
-    ${internalRows ? `
-    <div style="margin-top:20px; border:1px dashed #d1d5db; border-radius:10px; padding:14px; background:#fefce8;">
-      <div style="font-size:12px; font-weight:700; color:#7c5b12; margin-bottom:8px;">تحليل التكلفة الداخلية</div>
-      <table style="width:100%; font-size:12px;">${internalRows}</table>
-      ${quotation.internal_notes ? `<div style="margin-top:8px; font-size:11px;"><b>ملاحظات داخلية:</b> ${quotation.internal_notes}</div>` : ""}
+    ${brand.default_terms ? `<div class="terms">
+      <div class="section-title">الشروط والأحكام</div>
+      <div class="terms-body">${brand.default_terms}</div>
+      <div class="terms-body" style="margin-top:4px;">هذا العرض ساري لمدة ${quotation.validity_days ?? brand.default_validity_days} يوم من تاريخ الإصدار.</div>
     </div>` : ""}
 
-    ${company.terms ? `<div style="margin-top:20px;">
-      <div style="font-size:12px; font-weight:700; color:${primary}; border-right:4px solid ${accent}; padding-right:10px; margin-bottom:6px;">الشروط والأحكام</div>
-      <div style="font-size:11px; color:#5a6788;">${company.terms}</div>
-      <div style="font-size:11px; color:#5a6788; margin-top:4px;">هذا العرض ساري لمدة ${quotation.validity_days ?? 30} يوم من تاريخ الإصدار.</div>
+    ${quotation.customer_notes ? `<div class="terms"><div class="section-title">ملاحظات</div><div class="terms-body">${quotation.customer_notes}</div></div>` : ""}
+
+    ${brand.show_bank_details && brand.bank_name ? `<div class="bank">
+      <b>بيانات التحويل البنكي:</b> ${brand.bank_name}
+      ${brand.bank_account ? ` • حساب: <span dir="ltr">${brand.bank_account}</span>` : ""}
+      ${brand.bank_iban ? ` • IBAN: <span dir="ltr">${brand.bank_iban}</span>` : ""}
+      ${brand.bank_swift ? ` • SWIFT: <span dir="ltr">${brand.bank_swift}</span>` : ""}
     </div>` : ""}
 
-    ${quotation.customer_notes ? `<div style="margin-top:14px; font-size:11px;"><b>ملاحظات:</b> ${quotation.customer_notes}</div>` : ""}
-
-    <div style="margin-top:24px; display:flex; justify-content:space-between; align-items:center; border-top:2px solid ${primary}; padding-top:14px;">
-      <div style="font-size:10px; color:#7482a4;">
-        ${company.footer ?? ""}<br/>
-        ${company.name} • ${company.address}<br/>
-        <span dir="ltr">${company.phone} • ${company.email}</span>
+    <div class="footer">
+      <div class="footer-txt">
+        ${brand.pdf_footer ?? ""}<br/>
+        ${brand.company_name_ar} • ${brand.address ?? ""}<br/>
+        <span dir="ltr">${brand.phone ?? ""} • ${brand.email ?? ""}</span>
       </div>
-      <img src="${qrDataUrl}" width="80" height="80" alt="QR" />
+      ${qrDataUrl ? `<img src="${qrDataUrl}" width="80" height="80" alt="QR" />` : ""}
     </div>
   `;
 
@@ -223,32 +264,24 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     x: 20, y: 20,
     width: 555, windowWidth: 800,
     autoPaging: "text",
+    margin: [30, 20, 30, 20],
   });
   document.body.removeChild(container);
 
-  // Add page numbers
+  // Page numbers + brand-color footer bar
   const pageCount = pdf.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     pdf.setPage(i);
     pdf.setFontSize(9);
     pdf.setTextColor(150);
-    pdf.text(`Page ${i} of ${pageCount}`, 300, 830, { align: "center" });
+    pdf.text(`صفحة ${i} من ${pageCount}`, pdf.internal.pageSize.getWidth() / 2, pdf.internal.pageSize.getHeight() - 14, { align: "center" });
   }
 
   return pdf.output("blob");
 }
 
-export function whatsappMessage(customerName: string, productName: string, quotationNumber: string, egyptTz = "Africa/Cairo"): string {
-  const now = new Date();
-  const hourStr = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: egyptTz }).format(now);
-  const hour = parseInt(hourStr, 10);
-  const greeting = hour < 12 ? "صباح الخير" : "مساء الخير";
-  return `${greeting} أستاذ/ة ${customerName}\n\nمرفق لحضرتك عرض السعر رقم ${quotationNumber} الخاص بـ ${productName} من Elsewedy Print House.\n\nبرجاء المراجعة، ويسعدنا الرد على أي استفسار من حضرتك.\n\nتحياتنا،\nمطبعة السويدي — Elsewedy Print House`;
+// Back-compat: old imports.
+export function loadCompanySettings() {
+  // Deprecated — kept to avoid breaking older imports; prefer useBrand()/fetchBrand().
+  return {} as any;
 }
-
-export function whatsappLink(phone: string, message: string): string {
-  const digits = phone.replace(/\D/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
-
-void loadCairoFont; // reserved for future direct-font embedding path

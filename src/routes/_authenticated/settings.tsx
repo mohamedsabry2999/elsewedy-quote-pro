@@ -1,136 +1,213 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { useBrand, DEFAULT_BRAND, type BrandSettings } from "@/lib/brand";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { useRef, useState } from "react";
-import { DEFAULT_COMPANY, loadCompanySettings, type CompanySettings } from "@/lib/pdf";
-import { Save, Upload, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth";
-import { canManagePricing } from "@/lib/roles";
+import { ImageIcon, Save, Palette, Building2, FileText as FileTextIcon, Banknote, PenTool } from "lucide-react";
+
+const OWNER_EMAIL = "mohamedsabryabdelfatah@gmail.com";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "إعدادات الشركة — Elsewedy" }] }),
-  component: SettingsPage,
+  head: () => ({ meta: [{ title: "إعدادات الهوية والـ PDF — Medhat Elsewedy Printhouse" }] }),
+  component: BrandSettingsPage,
 });
 
-function SettingsPage() {
+function BrandSettingsPage() {
   const auth = useAuth();
-  const canEdit = canManagePricing(auth.roles);
-  const [form, setForm] = useState<CompanySettings>(() => loadCompanySettings());
-  const fileRef = useRef<HTMLInputElement>(null);
+  const brand = useBrand();
+  const qc = useQueryClient();
+  const [form, setForm] = useState<BrandSettings>(DEFAULT_BRAND);
+  const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
-  const save = () => {
-    localStorage.setItem("elsewedy-company", JSON.stringify(form));
-    toast.success("تم حفظ إعدادات الشركة (تُستخدم في PDF)");
+  useEffect(() => { setForm(brand); }, [brand]);
+
+  const isAdmin = auth.roles.includes("admin") || auth.email?.toLowerCase() === OWNER_EMAIL;
+  if (auth.loading) return <div className="p-6 text-muted-foreground">جاري التحميل…</div>;
+  if (!isAdmin) throw redirect({ to: "/dashboard" });
+
+  const set = <K extends keyof BrandSettings>(k: K, v: BrandSettings[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  const readAsDataURL = (file: File) => new Promise<string>((resolve, reject) => {
+    const r = new FileReader(); r.onload = () => resolve(r.result as string); r.onerror = reject; r.readAsDataURL(file);
+  });
+
+  const uploadImage = async (field: "logo_url" | "signature_url" | "stamp_url", file: File) => {
+    if (file.size > 2 * 1024 * 1024) { toast.error("الملف كبير جداً — الحد الأقصى 2MB"); return; }
+    setLogoUploading(true);
+    try {
+      const dataUrl = await readAsDataURL(file);
+      set(field, dataUrl);
+      toast.success("تم رفع الصورة — لا تنسَ الحفظ");
+    } finally { setLogoUploading(false); }
   };
 
-  const onLogoChange = (file: File | null) => {
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("حجم الشعار أكبر من 2 ميجا"); return; }
-    const reader = new FileReader();
-    reader.onload = () => setForm({ ...form, logo_data_url: String(reader.result) });
-    reader.readAsDataURL(file);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("brand_settings").upsert({ id: true, ...form });
+      if (error) throw error;
+      toast.success("تم حفظ إعدادات الهوية");
+      qc.invalidateQueries({ queryKey: ["brand-settings"] });
+    } catch (e) {
+      toast.error("تعذر الحفظ", { description: e instanceof Error ? e.message : "" });
+    } finally { setSaving(false); }
   };
-
-  if (!canEdit) return <div className="text-center py-16 text-muted-foreground">هذه الصفحة متاحة لمسؤول النظام فقط.</div>;
-
-  const primary = form.brand_primary || DEFAULT_COMPANY.brand_primary!;
-  const primaryEnd = form.brand_primary_end || DEFAULT_COMPANY.brand_primary_end!;
-  const accent = form.brand_accent || DEFAULT_COMPANY.brand_accent!;
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">إعدادات الشركة و PDF</h1>
-        <p className="text-sm text-muted-foreground">تظهر هذه البيانات في ترويسة وتذييل عروض الأسعار المُصدَّرة</p>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><ImageIcon className="size-6 text-primary" /> إعدادات الهوية والـ PDF</h1>
+          <p className="text-sm text-muted-foreground mt-1">تحكم كامل في هوية الشركة وشكل عروض السعر والوثائق الرسمية</p>
+        </div>
+        <Button onClick={save} disabled={saving} className="gradient-brand text-white border-0">
+          <Save className="size-4 ms-1" /> {saving ? "جاري الحفظ…" : "حفظ الإعدادات"}
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>الشعار والهوية البصرية</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="w-48 h-32 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden">
-              {form.logo_data_url ? (
-                <img src={form.logo_data_url} alt="logo" className="max-w-full max-h-full object-contain" />
-              ) : (
-                <span className="text-xs text-muted-foreground">لا يوجد شعار</span>
-              )}
-            </div>
-            <div className="flex-1 space-y-2">
-              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={(e) => onLogoChange(e.target.files?.[0] ?? null)} />
-              <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>
-                <Upload className="size-4 ms-1" /> رفع شعار جديد
-              </Button>
-              {form.logo_data_url && (
-                <Button type="button" variant="ghost" onClick={() => setForm({ ...form, logo_data_url: undefined })}>
-                  <X className="size-4 ms-1" /> إزالة الشعار
-                </Button>
-              )}
-              <p className="text-xs text-muted-foreground">PNG / JPG / SVG — حتى 2 ميجا. يظهر في ترويسة الـ PDF.</p>
-            </div>
-          </div>
+      <Tabs defaultValue="identity">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl">
+          <TabsTrigger value="identity"><Building2 className="size-3.5 ms-1" /> الهوية</TabsTrigger>
+          <TabsTrigger value="brand"><Palette className="size-3.5 ms-1" /> الألوان</TabsTrigger>
+          <TabsTrigger value="pdf"><FileTextIcon className="size-3.5 ms-1" /> الـ PDF</TabsTrigger>
+          <TabsTrigger value="signature"><PenTool className="size-3.5 ms-1" /> التوقيع</TabsTrigger>
+          <TabsTrigger value="bank"><Banknote className="size-3.5 ms-1" /> البنك</TabsTrigger>
+        </TabsList>
 
-          <div className="grid grid-cols-3 gap-3">
-            <ColorField label="اللون الرئيسي" value={primary} onChange={(v) => setForm({ ...form, brand_primary: v })} />
-            <ColorField label="اللون الرئيسي (تدرج)" value={primaryEnd} onChange={(v) => setForm({ ...form, brand_primary_end: v })} />
-            <ColorField label="لون التمييز" value={accent} onChange={(v) => setForm({ ...form, brand_accent: v })} />
-          </div>
+        <TabsContent value="identity" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader><CardTitle>شعار الشركة</CardTitle></CardHeader>
+            <CardContent className="flex items-center gap-6">
+              <div className="w-40 h-24 rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden">
+                {form.logo_url ? <img src={form.logo_url} alt="logo" className="max-w-full max-h-full object-contain" /> : <span className="text-xs text-muted-foreground">لا يوجد شعار</span>}
+              </div>
+              <div className="flex-1 space-y-2">
+                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadImage("logo_url", e.target.files[0])} disabled={logoUploading} />
+                <p className="text-xs text-muted-foreground">PNG أو JPG بحد أقصى 2MB. سيظهر في الشريط الجانبي، صفحة الدخول، ورأس الـ PDF.</p>
+                <Input value={form.logo_url} onChange={(e) => set("logo_url", e.target.value)} placeholder="أو الصق رابط الشعار مباشرة" dir="ltr" className="text-xs" />
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="rounded-lg overflow-hidden border">
-            <div className="p-4 flex items-center justify-between" style={{ borderBottom: `3px solid ${accent}` }}>
-              <div className="flex items-center gap-3">
-                {form.logo_data_url && <img src={form.logo_data_url} alt="" className="h-10 object-contain" />}
-                <div>
-                  <div className="font-bold" style={{ color: primary }}>{form.name}</div>
-                  <div className="text-xs text-muted-foreground">{form.name_en}</div>
+          <Card>
+            <CardHeader><CardTitle>بيانات الشركة</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="الاسم بالعربية"><Input value={form.company_name_ar} onChange={(e) => set("company_name_ar", e.target.value)} /></Field>
+              <Field label="الاسم بالإنجليزية"><Input value={form.company_name_en} onChange={(e) => set("company_name_en", e.target.value)} dir="ltr" /></Field>
+              <Field label="العنوان" full><Input value={form.address} onChange={(e) => set("address", e.target.value)} /></Field>
+              <Field label="الهاتف"><Input value={form.phone} onChange={(e) => set("phone", e.target.value)} dir="ltr" /></Field>
+              <Field label="واتساب"><Input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} dir="ltr" /></Field>
+              <Field label="البريد الإلكتروني"><Input value={form.email} onChange={(e) => set("email", e.target.value)} dir="ltr" /></Field>
+              <Field label="الموقع الإلكتروني"><Input value={form.website} onChange={(e) => set("website", e.target.value)} dir="ltr" /></Field>
+              <Field label="الرقم الضريبي"><Input value={form.tax_number} onChange={(e) => set("tax_number", e.target.value)} dir="ltr" /></Field>
+              <Field label="السجل التجاري"><Input value={form.commercial_register} onChange={(e) => set("commercial_register", e.target.value)} dir="ltr" /></Field>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="brand" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle>ألوان العلامة التجارية</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <ColorField label="اللون الأساسي" value={form.primary_color} onChange={(v) => set("primary_color", v)} />
+              <ColorField label="اللون الثانوي" value={form.secondary_color} onChange={(v) => set("secondary_color", v)} />
+              <ColorField label="لون الإبراز في الـ PDF" value={form.accent_color} onChange={(v) => set("accent_color", v)} />
+              <div className="md:col-span-3 rounded-xl p-6 text-white shadow-elegant" style={{ background: `linear-gradient(135deg, ${form.primary_color} 0%, ${form.secondary_color} 100%)` }}>
+                <div className="text-xs opacity-80">معاينة</div>
+                <div className="text-2xl font-bold mt-1">{form.company_name_ar}</div>
+                <div className="text-sm opacity-90">{form.company_name_en}</div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pdf" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader><CardTitle>محتوى الـ PDF</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <Field label="تذييل الـ PDF" full><Textarea value={form.pdf_footer} onChange={(e) => set("pdf_footer", e.target.value)} rows={2} /></Field>
+              <Field label="الشروط الافتراضية" full><Textarea value={form.default_terms} onChange={(e) => set("default_terms", e.target.value)} rows={3} /></Field>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field label="شروط الدفع الافتراضية"><Input value={form.default_payment_terms} onChange={(e) => set("default_payment_terms", e.target.value)} /></Field>
+                <Field label="صلاحية العرض (يوم)"><Input type="number" value={form.default_validity_days} onChange={(e) => set("default_validity_days", parseInt(e.target.value || "15", 10))} /></Field>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
+                <div><div className="font-medium text-sm">إظهار QR Code في الـ PDF</div><div className="text-xs text-muted-foreground">رمز يتيح للعميل فتح العرض إلكترونياً</div></div>
+                <Switch checked={form.show_qr} onCheckedChange={(v) => set("show_qr", v)} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
+                <div><div className="font-medium text-sm">إظهار بيانات البنك في الـ PDF</div><div className="text-xs text-muted-foreground">تظهر في تذييل عرض السعر</div></div>
+                <Switch checked={form.show_bank_details} onCheckedChange={(v) => set("show_bank_details", v)} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="signature" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader><CardTitle>التوقيع والختم</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>صورة التوقيع</Label>
+                <div className="w-full h-32 rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden">
+                  {form.signature_url ? <img src={form.signature_url} alt="signature" className="max-w-full max-h-full object-contain" /> : <span className="text-xs text-muted-foreground">لا يوجد</span>}
                 </div>
+                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadImage("signature_url", e.target.files[0])} />
               </div>
-              <div className="px-3 py-2 rounded text-white text-xs" style={{ background: `linear-gradient(135deg, ${primary}, ${primaryEnd})` }}>
-                معاينة الترويسة
+              <div className="space-y-2">
+                <Label>صورة الختم</Label>
+                <div className="w-full h-32 rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden">
+                  {form.stamp_url ? <img src={form.stamp_url} alt="stamp" className="max-w-full max-h-full object-contain" /> : <span className="text-xs text-muted-foreground">لا يوجد</span>}
+                </div>
+                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadImage("stamp_url", e.target.files[0])} />
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <Card>
-        <CardHeader><CardTitle>بيانات الترويسة</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3">
-          <div className="col-span-2 space-y-1"><Label>اسم الشركة (عربي)</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="col-span-2 space-y-1"><Label>Company name (English)</Label><Input dir="ltr" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} /></div>
-          <div className="col-span-2 space-y-1"><Label>العنوان</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-          <div className="space-y-1"><Label>الهاتف</Label><Input dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-          <div className="space-y-1"><Label>البريد الإلكتروني</Label><Input dir="ltr" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-          <div className="col-span-2 space-y-1"><Label>الموقع الإلكتروني</Label><Input dir="ltr" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></div>
-          <div className="col-span-2 space-y-1"><Label>الرقم الضريبي (اختياري)</Label><Input dir="ltr" value={form.tax_number ?? ""} onChange={(e) => setForm({ ...form, tax_number: e.target.value })} /></div>
-        </CardContent>
-      </Card>
+        <TabsContent value="bank" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle>بيانات البنك</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="اسم البنك"><Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} /></Field>
+              <Field label="رقم الحساب"><Input value={form.bank_account} onChange={(e) => set("bank_account", e.target.value)} dir="ltr" /></Field>
+              <Field label="IBAN"><Input value={form.bank_iban} onChange={(e) => set("bank_iban", e.target.value)} dir="ltr" /></Field>
+              <Field label="SWIFT"><Input value={form.bank_swift} onChange={(e) => set("bank_swift", e.target.value)} dir="ltr" /></Field>
+              <p className="md:col-span-2 text-xs text-muted-foreground">فعّل خيار "إظهار بيانات البنك في الـ PDF" من تبويب الـ PDF لعرض هذه البيانات في تذييل عروض الأسعار.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
 
-      <Card>
-        <CardHeader><CardTitle>الشروط والتذييل</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1"><Label>الشروط والأحكام الافتراضية</Label><Textarea rows={4} value={form.terms ?? ""} onChange={(e) => setForm({ ...form, terms: e.target.value })} /></div>
-          <div className="space-y-1"><Label>نص التذييل</Label><Textarea rows={3} value={form.footer ?? ""} onChange={(e) => setForm({ ...form, footer: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={save} className="gradient-primary"><Save className="size-4 ms-1" /> حفظ الإعدادات</Button>
-      </div>
+function Field({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`space-y-1.5 ${full ? "md:col-span-2" : ""}`}>
+      <Label className="text-xs">{label}</Label>
+      {children}
     </div>
   );
 }
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
       <div className="flex items-center gap-2">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-12 rounded border cursor-pointer bg-transparent" />
-        <Input dir="ltr" value={value} onChange={(e) => onChange(e.target.value)} className="font-mono text-sm" />
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-14 rounded border cursor-pointer" />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} dir="ltr" className="flex-1 font-mono text-sm" />
       </div>
     </div>
   );

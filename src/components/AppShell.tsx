@@ -1,16 +1,19 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles, Scissors, FileSpreadsheet, Factory, Shield } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
+import { useBrand } from "@/lib/brand";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 const OWNER_EMAIL = "mohamedsabryabdelfatah@gmail.com";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 const nav = [
   { to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم" },
   { to: "/quotations", icon: FileText, label: "عروض الأسعار" },
+  { to: "/quotations/new", icon: Plus, label: "إنشاء عرض سعر" },
   { to: "/job-orders", icon: Factory, label: "أوامر التشغيل" },
   { to: "/customers", icon: Users, label: "العملاء" },
 ] as const;
@@ -18,7 +21,9 @@ const nav = [
 export function AppShell() {
   const { pathname } = useRouterState({ select: (s) => s.location });
   const auth = useAuth();
+  const brand = useBrand();
   const navigate = useNavigate();
+  const isAdmin = canManagePricing(auth.roles) || auth.email?.toLowerCase() === OWNER_EMAIL;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -27,64 +32,62 @@ export function AppShell() {
   };
 
   return (
-    <div className="min-h-screen flex bg-muted/30">
+    <div className="min-h-screen flex bg-background">
       <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="p-5 border-b border-sidebar-border">
-          <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="size-10 rounded-lg gradient-gold flex items-center justify-center">
-              <Printer className="size-5 text-gold-foreground" />
-            </div>
-            <div>
-              <div className="font-bold text-sm leading-tight">Elsewedy</div>
-              <div className="text-xs opacity-70">Smart Quotation</div>
-            </div>
+        <div className="p-4 border-b border-sidebar-border">
+          <Link to="/dashboard" className="flex items-center justify-center bg-white/95 rounded-lg p-2.5 hover:bg-white transition">
+            <img src={brand.logo_url} alt={brand.company_name_en} className="h-11 w-auto object-contain" />
           </Link>
         </div>
 
         <div className="p-3">
-          <Button asChild className="w-full gradient-gold text-gold-foreground hover:opacity-90 border-0">
+          <Button asChild className="w-full gradient-brand text-white hover:opacity-90 border-0 shadow-elegant">
             <Link to="/quotations/new"><Plus className="size-4 ms-1" /> عرض سعر جديد</Link>
           </Button>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
           {nav.map((n) => {
-            const active = pathname.startsWith(n.to);
+            const active = n.to === "/quotations/new"
+              ? pathname === "/quotations/new"
+              : n.to === "/quotations"
+                ? pathname === "/quotations" || (pathname.startsWith("/quotations/") && pathname !== "/quotations/new")
+                : pathname.startsWith(n.to);
             return (
               <Link key={n.to} to={n.to}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-                  active ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"
+                  active ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/60"
                 }`}>
                 <n.icon className="size-4" /> {n.label}
               </Link>
             );
           })}
-          {(canManagePricing(auth.roles) || auth.email?.toLowerCase() === OWNER_EMAIL) && (
+          {isAdmin && (
             <>
               <div className="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider opacity-60">الإدارة</div>
-              <Link to="/users" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/users") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+              <Link to="/users" className={navItemCls(pathname.startsWith("/users"))}>
                 <Shield className="size-4" /> المستخدمون والصلاحيات
               </Link>
-              <Link to="/pricing" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/pricing") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+              <Link to="/pricing" className={navItemCls(pathname.startsWith("/pricing"))}>
                 <DollarSign className="size-4" /> قواعد التسعير
               </Link>
-              <Link to="/finishing" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/finishing") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+              <Link to="/finishing" className={navItemCls(pathname.startsWith("/finishing"))}>
                 <Scissors className="size-4" /> خدمات التشطيبات
               </Link>
-              <Link to="/import" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/import") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+              <Link to="/import" className={navItemCls(pathname.startsWith("/import"))}>
                 <FileSpreadsheet className="size-4" /> استيراد Excel
               </Link>
-              <Link to="/settings" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/settings") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
-                <Settings className="size-4" /> إعدادات الشركة
+              <Link to="/settings" className={navItemCls(pathname.startsWith("/settings"))}>
+                <ImageIcon className="size-4" /> إعدادات الهوية والـ PDF
               </Link>
             </>
           )}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
-          <div className="rounded-lg bg-sidebar-accent/40 p-3">
+          <div className="rounded-lg bg-sidebar-accent/60 p-3">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <div className="size-8 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-xs font-bold">
+              <div className="size-9 rounded-full gradient-brand text-white flex items-center justify-center text-xs font-bold">
                 {auth.fullName?.[0]?.toUpperCase() ?? "?"}
               </div>
               <div className="min-w-0 flex-1">
@@ -101,17 +104,38 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <div className="h-14 bg-card border-b flex items-center gap-3 px-6">
-          <Sparkles className="size-4 text-gold" />
-          <div className="text-sm text-muted-foreground">
-            مرحباً <span className="font-medium text-foreground">{auth.fullName}</span> — نظام عروض الأسعار الذكي
+      <main className="flex-1 min-w-0 flex flex-col">
+        <div className="h-16 bg-card border-b flex items-center gap-4 px-6 shadow-card">
+          <div className="relative flex-1 max-w-md">
+            <Search className="size-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="بحث سريع…" className="ps-3 pe-9 bg-muted/50 border-0" />
+          </div>
+          <Button asChild size="sm" className="gradient-brand text-white border-0">
+            <Link to="/quotations/new"><Plus className="size-4 ms-1" /> عرض جديد</Link>
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="الإشعارات">
+            <Bell className="size-4" />
+          </Button>
+          <div className="flex items-center gap-2 text-sm">
+            <div className="text-right">
+              <div className="font-medium leading-tight">{auth.fullName}</div>
+              <div className="text-[11px] text-muted-foreground">{auth.roles.map((r) => ROLE_LABELS[r]).join("، ")}</div>
+            </div>
+            <div className="size-9 rounded-full gradient-brand text-white flex items-center justify-center text-xs font-bold">
+              {auth.fullName?.[0]?.toUpperCase() ?? "?"}
+            </div>
           </div>
         </div>
-        <div className="p-6">
+        <div className="flex-1 p-6">
           <Outlet />
         </div>
       </main>
     </div>
   );
+}
+
+function navItemCls(active: boolean) {
+  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
+    active ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/60"
+  }`;
 }

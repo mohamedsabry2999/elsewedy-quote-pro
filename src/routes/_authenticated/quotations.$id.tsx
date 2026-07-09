@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { canSeeCosts, canApprove } from "@/lib/roles";
 import { currency, dateAr, dateTimeAr, number, percent } from "@/lib/format";
-import { generateQuotationPdf, whatsappMessage, whatsappLink, loadCompanySettings } from "@/lib/pdf";
+import { generateQuotationPdf, whatsappMessage, whatsappLink } from "@/lib/pdf";
+import { fetchBrand } from "@/lib/brand";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/quotations/$id")({
@@ -171,10 +172,10 @@ function QuotationDetail() {
     if (items.length === 0) { toast.error("لا توجد بنود في العرض"); return; }
     setPdfBusy(true);
     try {
-      const breakdown = (q.specs as any)?.breakdown ?? undefined;
+      const brand = await fetchBrand();
       const blob = await generateQuotationPdf({
-        quotation: q, customer: (q as any).customers, items, breakdown,
-        company: loadCompanySettings(), variant,
+        quotation: q, customer: (q as any).customers, items,
+        brand, variant,
         salesRepName: (q as any).profiles?.full_name,
       });
       const url = URL.createObjectURL(blob);
@@ -194,8 +195,8 @@ function QuotationDetail() {
     // Basic phone validation: digits + optional +
     const cleaned = phone.replace(/[^\d+]/g, "");
     if (cleaned.length < 8) { toast.error("رقم الواتساب غير صحيح"); return; }
-    const productName = items[0]?.title ?? "عرض السعر";
-    const msg = whatsappMessage(customer?.contact_person || customer?.company_name || "العميل", productName, q.quotation_number);
+    const brand = await fetchBrand();
+    const msg = whatsappMessage(customer?.contact_person || customer?.company_name || "العميل", q.quotation_number, brand.company_name_en);
     await downloadPdf("customer");
     window.open(whatsappLink(phone, msg), "_blank");
     await logActivity("sent_whatsapp", { phone });
@@ -260,30 +261,42 @@ function QuotationDetail() {
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>تفاصيل المنتج</CardTitle></CardHeader>
           <CardContent>
-            <Table>
-              <TableBody>
-                {items.map((it: any) => (
-                  <TableRow key={it.id}>
-                    <TableCell>
+            <div className="space-y-3">
+              {items.length === 0 && <div className="text-sm text-muted-foreground text-center py-6">لا توجد بنود في العرض</div>}
+              {items.map((it: any, i: number) => (
+                <div key={it.id} className="rounded-lg border overflow-hidden">
+                  <div className="bg-muted/40 px-4 py-2.5 flex items-center justify-between gap-3 border-b">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge className="gradient-brand text-white border-0">بند {it.item_number ?? i + 1}</Badge>
                       <div className="font-semibold">{it.title}</div>
-                      {it.description && <div className="text-xs text-muted-foreground mt-1">{it.description}</div>}
-                      {specs && (
-                        <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
-                          {specs.sheetSize && <div>مقاس الفرخ: {specs.sheetSize}</div>}
-                          {specs.copiesPerSheet && <div>عدد النسخ/فرخ: {specs.copiesPerSheet}</div>}
-                          {specs.printingSides && <div>الأوجه: {specs.printingSides}</div>}
-                          {specs.colors && <div>الألوان: {specs.colors}</div>}
-                          {specs.finishingKeys?.length > 0 && <div>التشطيبات: {specs.finishingKeys.join("، ")}</div>}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">{number(it.quantity)}</TableCell>
-                    <TableCell className="text-center">{currency(it.unit_price)}</TableCell>
-                    <TableCell className="text-center font-semibold">{currency(it.total_price)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      {it.category && <Badge variant="outline" className="text-xs">{it.category}</Badge>}
+                    </div>
+                    <div className="text-primary font-bold">{currency(it.total_price)}</div>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    {it.description && <div className="text-sm text-muted-foreground">{it.description}</div>}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs">
+                      <SpecRow label="الكمية" value={`${number(it.quantity)} ${it.unit ?? ""}`.trim()} />
+                      <SpecRow label="سعر الوحدة" value={currency(it.unit_price)} />
+                      {it.size && <SpecRow label="المقاس" value={it.size} />}
+                      {it.material && <SpecRow label="المادة" value={it.material} />}
+                      {it.gsm && <SpecRow label="GSM" value={it.gsm} />}
+                      {it.printing_method && <SpecRow label="الطباعة" value={it.printing_method} />}
+                      {it.printing_sides && <SpecRow label="الأوجه" value={it.printing_sides} />}
+                      {it.colors && <SpecRow label="الألوان" value={it.colors} />}
+                      {Array.isArray(it.finishing_options) && it.finishing_options.length > 0 &&
+                        <SpecRow label="التشطيبات" value={it.finishing_options.join("، ")} full />}
+                    </div>
+                    {(it.customer_notes || it.internal_notes) && (
+                      <div className="pt-2 border-t space-y-1 text-xs">
+                        {it.customer_notes && <div><span className="text-muted-foreground">ملاحظات للعميل:</span> {it.customer_notes}</div>}
+                        {showCosts && it.internal_notes && <div><span className="text-muted-foreground">داخلي:</span> {it.internal_notes}</div>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="mt-4 space-y-2 border-t pt-4 text-sm">
               <Row label="المجموع قبل الخصم" value={currency(q.subtotal)} />
               {Number(q.discount) > 0 && <Row label="الخصم" value={`- ${currency(q.discount)}`} />}
@@ -484,6 +497,14 @@ function Row({ label, value, big, bold }: { label: string; value: string; big?: 
     <div className={`flex items-center justify-between ${bold || big ? "font-semibold" : ""}`}>
       <span className={big ? "text-base" : "text-muted-foreground"}>{label}</span>
       <span className={big ? "text-xl text-primary font-bold" : ""}>{value}</span>
+    </div>
+  );
+}
+
+function SpecRow({ label, value, full }: { label: string; value: string | number; full?: boolean }) {
+  return (
+    <div className={full ? "col-span-full" : ""}>
+      <span className="text-muted-foreground">{label}:</span> <span className="font-medium">{value}</span>
     </div>
   );
 }
