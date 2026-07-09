@@ -10,10 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Building2, Phone, Mail, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Building2, Phone, Mail, Edit, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { canManageCustomers } from "@/lib/roles";
+import { SmartImportModal } from "@/components/SmartImportModal";
 import { dateAr } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/customers")({
@@ -43,6 +44,7 @@ function CustomersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState<Partial<Customer>>(empty);
 
   const { data: customers = [] } = useQuery({
@@ -94,34 +96,42 @@ function CustomersPage() {
           <h1 className="text-2xl font-bold">العملاء</h1>
           <p className="text-sm text-muted-foreground">إدارة قاعدة بيانات العملاء والاتصالات</p>
         </div>
-        {canManage && (
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(empty); }}>
-            <DialogTrigger asChild><Button className="gradient-primary"><Plus className="size-4 ms-1" /> إضافة عميل</Button></DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader><DialogTitle>{form.id ? "تعديل بيانات العميل" : "إضافة عميل جديد"}</DialogTitle></DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 space-y-1"><Label>اسم الشركة *</Label><Input value={form.company_name ?? ""} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></div>
-                <div className="space-y-1"><Label>اسم المسؤول</Label><Input value={form.contact_person ?? ""} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div>
-                <div className="space-y-1"><Label>الصناعة</Label><Input value={form.industry ?? ""} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="أدوية، تجميل، أغذية..." /></div>
-                <div className="space-y-1"><Label>رقم الهاتف</Label><Input dir="ltr" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-                <div className="space-y-1"><Label>رقم واتساب</Label><Input dir="ltr" value={form.whatsapp ?? ""} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+201..." /></div>
-                <div className="space-y-1"><Label>البريد الإلكتروني</Label><Input dir="ltr" type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-                <div className="space-y-1"><Label>حالة المتابعة</Label>
-                  <select className="w-full h-9 rounded-md border bg-transparent px-3 text-sm" value={form.follow_up_status ?? "new"} onChange={(e) => setForm({ ...form, follow_up_status: e.target.value })}>
-                    {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
+        <div className="flex gap-2">
+          {canManage && (
+            <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="size-4 ms-1" /> رفع بيانات</Button>
+          )}
+          {canManage && (
+            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setForm(empty); }}>
+              <DialogTrigger asChild><Button className="gradient-primary"><Plus className="size-4 ms-1" /> إضافة عميل</Button></DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader><DialogTitle>{form.id ? "تعديل بيانات العميل" : "إضافة عميل جديد"}</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-1"><Label>اسم الشركة *</Label><Input value={form.company_name ?? ""} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></div>
+                  <div className="space-y-1"><Label>اسم المسؤول</Label><Input value={form.contact_person ?? ""} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></div>
+                  <div className="space-y-1"><Label>الصناعة</Label><Input value={form.industry ?? ""} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="أدوية، تجميل، أغذية..." /></div>
+                  <div className="space-y-1"><Label>رقم الهاتف</Label><Input dir="ltr" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+                  <div className="space-y-1"><Label>رقم واتساب</Label><Input dir="ltr" value={form.whatsapp ?? ""} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+201..." /></div>
+                  <div className="space-y-1"><Label>البريد الإلكتروني</Label><Input dir="ltr" type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+                  <div className="space-y-1"><Label>حالة المتابعة</Label>
+                    <select className="w-full h-9 rounded-md border bg-transparent px-3 text-sm" value={form.follow_up_status ?? "new"} onChange={(e) => setForm({ ...form, follow_up_status: e.target.value })}>
+                      {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2 space-y-1"><Label>العنوان</Label><Input value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+                  <div className="col-span-2 space-y-1"><Label>ملاحظات</Label><Textarea rows={3} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
                 </div>
-                <div className="col-span-2 space-y-1"><Label>العنوان</Label><Input value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-                <div className="col-span-2 space-y-1"><Label>ملاحظات</Label><Textarea rows={3} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-                <Button onClick={() => save.mutate()} disabled={!form.company_name || save.isPending}>حفظ</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+                  <Button onClick={() => save.mutate()} disabled={!form.company_name || save.isPending}>حفظ</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
+
+      <SmartImportModal open={importOpen} onOpenChange={setImportOpen} module="customers"
+        onComplete={() => qc.invalidateQueries({ queryKey: ["customers"] })} />
 
       <Card>
         <CardHeader>

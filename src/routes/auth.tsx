@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { useBrand } from "@/lib/brand";
 
 export const Route = createFileRoute("/auth")({
@@ -21,7 +20,6 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -37,21 +35,6 @@ function AuthPage() {
     if (error) { toast.error(error.message); return; }
     toast.success("تم تسجيل الدخول بنجاح");
     navigate({ to: "/dashboard" });
-  };
-
-  const signUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-        data: { full_name: fullName },
-      },
-    });
-    setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم إنشاء الحساب. يمكنك تسجيل الدخول الآن.");
   };
 
   return (
@@ -82,52 +65,29 @@ function AuthPage() {
           <Card className="shadow-elegant">
             <CardHeader>
               <CardTitle className="text-2xl">مرحباً بك</CardTitle>
-              <CardDescription>سجل دخولك للوصول إلى نظام عروض الأسعار</CardDescription>
+              <CardDescription>سجّل دخولك للوصول إلى نظام عروض الأسعار</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="signin">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="signin">تسجيل الدخول</TabsTrigger>
-                  <TabsTrigger value="signup">إنشاء حساب</TabsTrigger>
-                </TabsList>
-                <TabsContent value="signin">
-                  <form onSubmit={signIn} className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">البريد الإلكتروني</Label>
-                      <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" dir="ltr" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">كلمة المرور</Label>
-                      <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
-                    </div>
-                    <Button type="submit" className="w-full gradient-brand text-white border-0" disabled={loading}>
-                      {loading && <Loader2 className="ms-2 size-4 animate-spin" />} دخول
-                    </Button>
-                  </form>
-                </TabsContent>
-                <TabsContent value="signup">
-                  <form onSubmit={signUp} className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">الاسم الكامل</Label>
-                      <Input id="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="محمد أحمد" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email2">البريد الإلكتروني</Label>
-                      <Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password2">كلمة المرور</Label>
-                      <Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
-                    </div>
-                    <Button type="submit" className="w-full gradient-brand text-white border-0" disabled={loading}>
-                      {loading && <Loader2 className="ms-2 size-4 animate-spin" />} إنشاء الحساب
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center">
-                      يقوم مسؤول النظام بتفعيل الصلاحيات المناسبة لحسابك بعد التسجيل.
-                    </p>
-                  </form>
-                </TabsContent>
-              </Tabs>
+              <form onSubmit={signIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">البريد الإلكتروني</Label>
+                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" dir="ltr" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">كلمة المرور</Label>
+                  <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr" />
+                </div>
+                <Button type="submit" className="w-full gradient-brand text-white border-0" disabled={loading}>
+                  {loading && <Loader2 className="ms-2 size-4 animate-spin" />} دخول
+                </Button>
+              </form>
+              <div className="mt-6 rounded-lg border bg-muted/40 p-3 flex items-start gap-2 text-xs text-muted-foreground">
+                <ShieldCheck className="size-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  نظام مغلق — إنشاء الحسابات يتم من مسؤول النظام فقط عبر صفحة "إدارة المستخدمين والصلاحيات".
+                  للحصول على حساب، تواصل مع مسؤول النظام.
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

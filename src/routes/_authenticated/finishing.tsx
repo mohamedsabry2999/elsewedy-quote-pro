@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { canManagePricing } from "@/lib/roles";
-import { Plus, Save, Trash2, Scissors } from "lucide-react";
+import { Plus, Save, Trash2, Scissors, Upload } from "lucide-react";
+import { SmartImportModal } from "@/components/SmartImportModal";
 
 export const Route = createFileRoute("/_authenticated/finishing")({
   head: () => ({ meta: [{ title: "خدمات التشطيبات — Elsewedy Smart Quotation" }] }),
@@ -23,6 +24,7 @@ function FinishingPage() {
   const canEdit = canManagePricing(auth.roles);
   const [edits, setEdits] = useState<Record<string, { label_ar?: string; value?: number; unit?: string }>>({});
   const [nk, setNk] = useState({ key: "", label_ar: "", value: 0, unit: "فرخ" });
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: rows = [] } = useQuery({
     queryKey: ["finishing-rules"],
@@ -67,10 +69,16 @@ function FinishingPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Scissors className="size-6 text-gold" /> إدارة خدمات التشطيبات</h1>
           <p className="text-sm text-muted-foreground">تحكم كامل في أنواع التشطيبات وأسعار كل خدمة</p>
         </div>
-        <Button onClick={() => save.mutate()} disabled={!Object.keys(edits).length || save.isPending} className="gradient-primary">
-          <Save className="size-4 ms-1" /> حفظ التعديلات ({Object.keys(edits).length})
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="size-4 ms-1" /> رفع بيانات</Button>
+          <Button onClick={() => save.mutate()} disabled={!Object.keys(edits).length || save.isPending} className="gradient-primary">
+            <Save className="size-4 ms-1" /> حفظ التعديلات ({Object.keys(edits).length})
+          </Button>
+        </div>
       </div>
+
+      <SmartImportModal open={importOpen} onOpenChange={setImportOpen} module="finishing"
+        onComplete={() => { qc.invalidateQueries({ queryKey: ["finishing-rules"] }); qc.invalidateQueries({ queryKey: ["pricing-rules"] }); }} />
 
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="size-4" /> إضافة تشطيب جديد</CardTitle></CardHeader>

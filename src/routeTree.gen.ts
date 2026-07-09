@@ -16,6 +16,8 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
 import { Route as AuthenticatedJobOrdersRouteImport } from './routes/_authenticated/job-orders'
+import { Route as AuthenticatedItemTemplatesRouteImport } from './routes/_authenticated/item-templates'
+import { Route as AuthenticatedImportHistoryRouteImport } from './routes/_authenticated/import-history'
 import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
 import { Route as AuthenticatedFinishingRouteImport } from './routes/_authenticated/finishing'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -58,6 +60,18 @@ const AuthenticatedJobOrdersRoute = AuthenticatedJobOrdersRouteImport.update({
   path: '/job-orders',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedItemTemplatesRoute =
+  AuthenticatedItemTemplatesRouteImport.update({
+    id: '/item-templates',
+    path: '/item-templates',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedImportHistoryRoute =
+  AuthenticatedImportHistoryRouteImport.update({
+    id: '/import-history',
+    path: '/import-history',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedImportRoute = AuthenticatedImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -104,6 +118,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/finishing': typeof AuthenticatedFinishingRoute
   '/import': typeof AuthenticatedImportRoute
+  '/import-history': typeof AuthenticatedImportHistoryRoute
+  '/item-templates': typeof AuthenticatedItemTemplatesRoute
   '/job-orders': typeof AuthenticatedJobOrdersRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -119,6 +135,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/finishing': typeof AuthenticatedFinishingRoute
   '/import': typeof AuthenticatedImportRoute
+  '/import-history': typeof AuthenticatedImportHistoryRoute
+  '/item-templates': typeof AuthenticatedItemTemplatesRoute
   '/job-orders': typeof AuthenticatedJobOrdersRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -136,6 +154,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/finishing': typeof AuthenticatedFinishingRoute
   '/_authenticated/import': typeof AuthenticatedImportRoute
+  '/_authenticated/import-history': typeof AuthenticatedImportHistoryRoute
+  '/_authenticated/item-templates': typeof AuthenticatedItemTemplatesRoute
   '/_authenticated/job-orders': typeof AuthenticatedJobOrdersRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -153,6 +173,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/finishing'
     | '/import'
+    | '/import-history'
+    | '/item-templates'
     | '/job-orders'
     | '/pricing'
     | '/settings'
@@ -168,6 +190,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/finishing'
     | '/import'
+    | '/import-history'
+    | '/item-templates'
     | '/job-orders'
     | '/pricing'
     | '/settings'
@@ -184,6 +208,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/finishing'
     | '/_authenticated/import'
+    | '/_authenticated/import-history'
+    | '/_authenticated/item-templates'
     | '/_authenticated/job-orders'
     | '/_authenticated/pricing'
     | '/_authenticated/settings'
@@ -250,6 +276,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedJobOrdersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/item-templates': {
+      id: '/_authenticated/item-templates'
+      path: '/item-templates'
+      fullPath: '/item-templates'
+      preLoaderRoute: typeof AuthenticatedItemTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/import-history': {
+      id: '/_authenticated/import-history'
+      path: '/import-history'
+      fullPath: '/import-history'
+      preLoaderRoute: typeof AuthenticatedImportHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/import': {
       id: '/_authenticated/import'
       path: '/import'
@@ -307,6 +347,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFinishingRoute: typeof AuthenticatedFinishingRoute
   AuthenticatedImportRoute: typeof AuthenticatedImportRoute
+  AuthenticatedImportHistoryRoute: typeof AuthenticatedImportHistoryRoute
+  AuthenticatedItemTemplatesRoute: typeof AuthenticatedItemTemplatesRoute
   AuthenticatedJobOrdersRoute: typeof AuthenticatedJobOrdersRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -321,6 +363,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFinishingRoute: AuthenticatedFinishingRoute,
   AuthenticatedImportRoute: AuthenticatedImportRoute,
+  AuthenticatedImportHistoryRoute: AuthenticatedImportHistoryRoute,
+  AuthenticatedItemTemplatesRoute: AuthenticatedItemTemplatesRoute,
   AuthenticatedJobOrdersRoute: AuthenticatedJobOrdersRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
@@ -341,13 +385,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
