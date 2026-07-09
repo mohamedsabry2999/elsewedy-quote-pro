@@ -153,10 +153,10 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     </div>
 
     <div style="margin-top:20px;">
-      <div style="font-size:13px; font-weight:700; color:#1c2b58; border-right:4px solid #b48a3b; padding-right:10px; margin-bottom:8px;">تفاصيل المنتج</div>
+      <div style="font-size:13px; font-weight:700; color:${primary}; border-right:4px solid ${accent}; padding-right:10px; margin-bottom:8px;">تفاصيل المنتج</div>
       <table style="width:100%; border-collapse:collapse; font-size:12px;">
         <thead>
-          <tr style="background:#1c2b58; color:#fff;">
+          <tr style="background:${primary}; color:#fff;">
             <th style="padding:10px; text-align:right;">الوصف</th>
             <th style="padding:10px; text-align:center; width:80px;">الكمية</th>
             <th style="padding:10px; text-align:center; width:110px;">سعر الوحدة</th>
@@ -184,7 +184,7 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
       <div style="min-width:280px;">
         <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:12px;"><span>المجموع قبل الخصم</span><b>${currency(quotation.subtotal)}</b></div>
         ${Number(quotation.discount) > 0 ? `<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:12px; color:#b91c1c;"><span>الخصم</span><b>- ${currency(quotation.discount)}</b></div>` : ""}
-        <div style="background:linear-gradient(135deg,#1c2b58,#3b5199); color:#fff; padding:12px 14px; border-radius:10px; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:linear-gradient(135deg,${primary},${primaryEnd}); color:#fff; padding:12px 14px; border-radius:10px; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:12px; opacity:.9;">السعر النهائي</span>
           <span style="font-size:20px; font-weight:800;">${currency(quotation.final_price)}</span>
         </div>
@@ -199,14 +199,14 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     </div>` : ""}
 
     ${company.terms ? `<div style="margin-top:20px;">
-      <div style="font-size:12px; font-weight:700; color:#1c2b58; border-right:4px solid #b48a3b; padding-right:10px; margin-bottom:6px;">الشروط والأحكام</div>
+      <div style="font-size:12px; font-weight:700; color:${primary}; border-right:4px solid ${accent}; padding-right:10px; margin-bottom:6px;">الشروط والأحكام</div>
       <div style="font-size:11px; color:#5a6788;">${company.terms}</div>
       <div style="font-size:11px; color:#5a6788; margin-top:4px;">هذا العرض ساري لمدة ${quotation.validity_days ?? 30} يوم من تاريخ الإصدار.</div>
     </div>` : ""}
 
     ${quotation.customer_notes ? `<div style="margin-top:14px; font-size:11px;"><b>ملاحظات:</b> ${quotation.customer_notes}</div>` : ""}
 
-    <div style="margin-top:24px; display:flex; justify-content:space-between; align-items:center; border-top:2px solid #1c2b58; padding-top:14px;">
+    <div style="margin-top:24px; display:flex; justify-content:space-between; align-items:center; border-top:2px solid ${primary}; padding-top:14px;">
       <div style="font-size:10px; color:#7482a4;">
         ${company.footer ?? ""}<br/>
         ${company.name} • ${company.address}<br/>
