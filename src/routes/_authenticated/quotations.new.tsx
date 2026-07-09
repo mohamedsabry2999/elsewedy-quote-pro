@@ -182,8 +182,15 @@ function WizardPage() {
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
   const save = async (finalStatus: "draft" | "pending_approval" | "approved") => {
+    // Validations
     if (!customerId) return toast.error("اختر العميل أولاً");
-    if (!title) return toast.error("أدخل عنوان المنتج");
+    if (!title.trim()) return toast.error("أدخل عنوان المنتج");
+    if (quantity <= 0) return toast.error("الكمية يجب أن تكون أكبر من صفر");
+    if (marginPct < 0) return toast.error("هامش الربح لا يمكن أن يكون سالبًا");
+    if (discountPct < 0 || discountPct > 100) return toast.error("نسبة الخصم غير صحيحة");
+    if (breakdown.finalPrice <= 0) return toast.error("السعر النهائي يجب أن يكون أكبر من صفر");
+    if (isFinishingOnly && finishingKeys.length === 0) return toast.error("اختر خدمة تشطيب واحدة على الأقل");
+
     setSaving(true);
     try {
       const { data: numRow, error: nerr } = await supabase.rpc("next_quotation_number");
@@ -191,6 +198,7 @@ function WizardPage() {
       const quotationNumber = numRow as unknown as string;
 
       const status = approvalRequired && finalStatus !== "draft" ? "pending_approval" : finalStatus;
+      const unitPrice = breakdown.finalPrice / Math.max(1, quantity);
 
       const { data: q, error } = await supabase.from("quotations").insert({
         quotation_number: quotationNumber,
@@ -204,6 +212,10 @@ function WizardPage() {
         discount: breakdown.discount,
         profit_margin_pct: marginPct,
         final_price: breakdown.finalPrice,
+        unit_price: unitPrice,
+        tax_enabled: taxEnabled,
+        tax_pct: taxPct,
+        tax_amount: breakdown.taxAmount,
         payment_terms: paymentTerms,
         delivery_days: deliveryDays,
         validity_days: validityDays,
@@ -213,6 +225,9 @@ function WizardPage() {
         specs: {
           sheetSize, copiesPerSheet, printingSides, colors, specialInks,
           paperKey, finishingKeys, breakdown: { ...breakdown }, title, description,
+          boxL, boxW, boxH, hasDieCut, hasGluing,
+          labelW, labelH, labelMethod, labelForm,
+          finishingSheetsCount,
         } as any,
       }).select("id").single();
       if (error) throw error;
@@ -223,14 +238,14 @@ function WizardPage() {
         description,
         specs: { sheetSize, copiesPerSheet, printingSides, colors, specialInks, paperKey, finishingKeys },
         quantity,
-        unit_price: breakdown.finalPrice / Math.max(1, quantity),
+        unit_price: unitPrice,
         unit_cost: breakdown.totalCost / Math.max(1, quantity),
         total_price: breakdown.finalPrice,
       });
 
       await supabase.from("activity_log").insert({
         quotation_id: q.id, user_id: auth.userId, action: "created",
-        details: { status, approvalRequired },
+        details: { status, approvalRequired, finalPrice: breakdown.finalPrice },
       });
 
       toast.success(`تم إنشاء العرض ${quotationNumber}${approvalRequired ? " — بانتظار اعتماد المدير" : ""}`);
