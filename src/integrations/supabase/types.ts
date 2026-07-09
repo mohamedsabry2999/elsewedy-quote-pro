@@ -180,22 +180,31 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
+          is_suspended: boolean
+          last_login_at: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
+          is_suspended?: boolean
+          last_login_at?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          is_suspended?: boolean
+          last_login_at?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -346,6 +355,30 @@ export type Database = {
           },
         ]
       }
+      user_permissions: {
+        Row: {
+          granted: boolean
+          permission_key: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          granted?: boolean
+          permission_key: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          granted?: boolean
+          permission_key?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -379,6 +412,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_permission: {
+        Args: { _key: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -386,6 +423,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_owner: { Args: { _user_id: string }; Returns: boolean }
       next_job_order_number: { Args: never; Returns: string }
       next_quotation_number: { Args: never; Returns: string }
     }
