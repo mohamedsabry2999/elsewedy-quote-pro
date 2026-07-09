@@ -36,6 +36,7 @@ const CATEGORIES = [
   { key: "cosmetics", label: "مستحضرات تجميل", hint: "Cosmetics Packaging" },
   { key: "food", label: "تغليف مواد غذائية", hint: "Food Grade" },
   { key: "marketing", label: "مطبوعات تسويقية", hint: "Brochures, Flyers" },
+  { key: "finishing_only", label: "خدمة تشطيبات فقط", hint: "Finishing service" },
   { key: "custom", label: "منتج مخصص", hint: "Custom" },
 ];
 
