@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight, Save, Sparkles, ShieldAlert } from "lucide-r
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { canSeeCosts } from "@/lib/roles";
-import { calcDigital, calcOffset, ruleMap, type PricingBreakdown } from "@/lib/pricing";
+import { calcDigital, calcOffset, calcPackaging, calcLabels, calcFinishingOnly, ruleMap, type PricingBreakdown } from "@/lib/pricing";
 import { currency, number, percent } from "@/lib/format";
 
 const searchSchema = z.object({ customer: z.string().optional() });
