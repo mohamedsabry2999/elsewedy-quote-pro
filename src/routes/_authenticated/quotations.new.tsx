@@ -145,7 +145,7 @@ function WizardPage() {
       return calcLabels({
         quantity, labelWidthMm: labelW, labelHeightMm: labelH,
         materialKey: paperKey, method: labelMethod, colors,
-        laminateKey: laminateKey || undefined, hasDieCut, form: labelForm,
+        laminateKey: finishingKeys[0] || undefined, hasDieCut, form: labelForm,
         marginPct, discountPct,
       }, rules);
     }
