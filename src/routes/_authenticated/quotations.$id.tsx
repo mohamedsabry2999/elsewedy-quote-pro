@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { canSeeCosts, canApprove } from "@/lib/roles";
 import { currency, dateAr, dateTimeAr, number, percent } from "@/lib/format";
-import { generateQuotationPdf, whatsappMessage, whatsappLink, DEFAULT_COMPANY } from "@/lib/pdf";
+import { generateQuotationPdf, whatsappMessage, whatsappLink, loadCompanySettings } from "@/lib/pdf";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/quotations/$id")({
