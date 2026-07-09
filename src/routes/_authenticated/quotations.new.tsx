@@ -416,16 +416,32 @@ function WizardPage() {
             )}
             {step === 7 && (
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label>هامش الربح ٪</Label><Input type="number" min={0} value={marginPct} onChange={(e) => setMarginPct(+e.target.value)} /></div>
-                <div className="space-y-1"><Label>خصم ٪</Label><Input type="number" min={0} value={discountPct} onChange={(e) => setDiscountPct(+e.target.value)} /></div>
+                <div className="space-y-1"><Label>هامش الربح ٪</Label><Input type="number" min={0} value={marginPct} onChange={(e) => setMarginPct(Math.max(0, +e.target.value))} /></div>
+                <div className="space-y-1"><Label>خصم ٪</Label><Input type="number" min={0} max={100} value={discountPct} onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, +e.target.value)))} /></div>
+                <div className="col-span-2 rounded-lg border p-3 bg-muted/30 space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <Checkbox checked={taxEnabled} onCheckedChange={(v) => setTaxEnabled(!!v)} />
+                    تفعيل ضريبة القيمة المضافة (VAT)
+                  </label>
+                  {taxEnabled && (
+                    <div className="grid grid-cols-2 gap-3 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">نسبة الضريبة ٪</Label>
+                        <Input type="number" min={0} max={100} value={taxPct} onChange={(e) => setTaxPct(Math.max(0, Math.min(100, +e.target.value)))} />
+                      </div>
+                      <div className="text-xs text-muted-foreground">تُضاف الضريبة على السعر بعد الخصم.</div>
+                    </div>
+                  )}
+                </div>
                 {approvalRequired && (
                   <div className="col-span-2 rounded-lg border border-warning bg-warning/10 p-3 flex items-start gap-2 text-sm">
                     <ShieldAlert className="size-5 text-warning-foreground shrink-0" />
                     <div>
                       <div className="font-semibold">يتطلب اعتماد المدير</div>
-                      <div className="text-xs mt-1">
-                        {marginPct < minMargin && <>هامش الربح أقل من الحد الأدنى ({percent(minMargin)}). </>}
-                        {discountPct > maxDiscount && <>الخصم يتجاوز الحد المسموح ({percent(maxDiscount)}).</>}
+                      <div className="text-xs mt-1 space-y-0.5">
+                        {marginPct < minMargin && <div>• هامش الربح ({percent(marginPct)}) أقل من الحد الأدنى ({percent(minMargin)}).</div>}
+                        {discountPct > maxDiscount && <div>• الخصم ({percent(discountPct)}) يتجاوز الحد المسموح ({percent(maxDiscount)}).</div>}
+                        {breakdown.finalPrice > highValueThreshold && <div>• قيمة العرض ({currency(breakdown.finalPrice)}) تتجاوز حد الاعتماد ({currency(highValueThreshold)}).</div>}
                       </div>
                     </div>
                   </div>
