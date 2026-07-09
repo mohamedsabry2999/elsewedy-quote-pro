@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight, Save, Sparkles, ShieldAlert } from "lucide-r
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { canSeeCosts } from "@/lib/roles";
-import { calcDigital, calcOffset, ruleMap, type PricingBreakdown } from "@/lib/pricing";
+import { calcDigital, calcOffset, calcPackaging, calcLabels, calcFinishingOnly, ruleMap, type PricingBreakdown } from "@/lib/pricing";
 import { currency, number, percent } from "@/lib/format";
 
 const searchSchema = z.object({ customer: z.string().optional() });
@@ -36,6 +36,7 @@ const CATEGORIES = [
   { key: "cosmetics", label: "مستحضرات تجميل", hint: "Cosmetics Packaging" },
   { key: "food", label: "تغليف مواد غذائية", hint: "Food Grade" },
   { key: "marketing", label: "مطبوعات تسويقية", hint: "Brochures, Flyers" },
+  { key: "finishing_only", label: "خدمة تشطيبات فقط", hint: "Finishing service" },
   { key: "custom", label: "منتج مخصص", hint: "Custom" },
 ];
 
@@ -72,6 +73,23 @@ function WizardPage() {
   const [colors, setColors] = useState<number>(4);
   const [specialInks, setSpecialInks] = useState(0);
 
+  // Packaging specs (cm)
+  const [boxL, setBoxL] = useState(15);
+  const [boxW, setBoxW] = useState(5);
+  const [boxH, setBoxH] = useState(20);
+  const [hasDieCut, setHasDieCut] = useState(true);
+  const [hasGluing, setHasGluing] = useState(true);
+
+  // Label specs (mm)
+  const [labelW, setLabelW] = useState(60);
+  const [labelH, setLabelH] = useState(40);
+  const [labelMethod, setLabelMethod] = useState<"digital" | "flexo">("digital");
+  const [labelForm, setLabelForm] = useState<"roll" | "sheet">("roll");
+  // (laminate is taken from the first selected finishing option in step 5)
+
+  // Finishing-only service
+  const [finishingSheetsCount, setFinishingSheetsCount] = useState(1000);
+
   // Material
   const [paperKey, setPaperKey] = useState("coated_300gsm");
 
@@ -105,19 +123,44 @@ function WizardPage() {
   const minMargin = rules["margin.minimum_pct"] ?? 12;
   const maxDiscount = rules["discount.max_pct"] ?? 10;
 
+  const isPackaging = ["folding_cartons", "paper_packaging", "pharma", "cosmetics", "food"].includes(category);
+  const isLabels = category === "labels";
+  const isFinishingOnly = category === "finishing_only";
+  const isOffset = category === "offset";
+  const isDigital = category === "digital" || category === "marketing" || category === "custom";
+
   useEffect(() => {
     setMarginPct(rules["margin.default_pct"] ?? 25);
   }, [rules]);
 
   const breakdown: PricingBreakdown = useMemo(() => {
-    if (category === "offset") {
+    if (isPackaging) {
+      return calcPackaging({
+        quantity, boxLengthCm: boxL, boxWidthCm: boxW, boxHeightCm: boxH,
+        boardKey: paperKey, colors, printingSides, finishingKeys,
+        hasDieCut, hasGluing, marginPct, discountPct,
+      }, rules);
+    }
+    if (isLabels) {
+      return calcLabels({
+        quantity, labelWidthMm: labelW, labelHeightMm: labelH,
+        materialKey: paperKey, method: labelMethod, colors,
+        laminateKey: finishingKeys[0] || undefined, hasDieCut, form: labelForm,
+        marginPct, discountPct,
+      }, rules);
+    }
+    if (isFinishingOnly) {
+      return calcFinishingOnly({ sheetsCount: finishingSheetsCount, finishingKeys, marginPct, discountPct }, rules);
+    }
+    if (isOffset) {
       return calcOffset({ quantity, copiesPerSheet, paperKey, colors, printingSides, finishingKeys, marginPct, discountPct }, rules);
     }
     return calcDigital({
       sheetSize, copiesPerSheet, quantity, paperKey, printingSides, colors: (colors as 1 | 4),
       specialInks, finishingKeys, marginPct, discountPct,
     }, rules);
-  }, [category, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules]);
+  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, finishingSheetsCount]);
+
 
   const approvalRequired = marginPct < minMargin || discountPct > maxDiscount;
 
@@ -229,14 +272,59 @@ function WizardPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1"><Label>عنوان المنتج *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: كتالوج شركة — 24 صفحة" /></div>
                 <div className="col-span-2 space-y-1"><Label>وصف مختصر</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
-                <div className="space-y-1"><Label>مقاس الفرخ</Label>
-                  <select className="w-full h-10 rounded-md border bg-transparent px-3" value={sheetSize} onChange={(e) => setSheetSize(e.target.value as any)}>
-                    <option value="50x70">50×70 (HP Indigo 12K)</option>
-                    <option value="33x48">33×48</option>
-                    <option value="custom">مخصص</option>
-                  </select>
-                </div>
-                <div className="space-y-1"><Label>عدد النسخ في الفرخ</Label><Input type="number" min={1} value={copiesPerSheet} onChange={(e) => setCopiesPerSheet(Math.max(1, +e.target.value))} /></div>
+
+                {isPackaging && (<>
+                  <div className="col-span-2 text-xs text-muted-foreground rounded-lg bg-accent p-3">
+                    أدخل أبعاد العلبة (الطول × العرض × الارتفاع) بالسنتيمتر. سيقوم النظام بحساب مسطح الفرد وعدد النسخ من فرخ 70×100.
+                  </div>
+                  <div className="space-y-1"><Label>الطول L (سم)</Label><Input type="number" min={1} value={boxL} onChange={(e) => setBoxL(Math.max(1, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>العرض W (سم)</Label><Input type="number" min={1} value={boxW} onChange={(e) => setBoxW(Math.max(1, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>الارتفاع H (سم)</Label><Input type="number" min={1} value={boxH} onChange={(e) => setBoxH(Math.max(1, +e.target.value))} /></div>
+                  <div className="flex items-center gap-4 col-span-2">
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={hasDieCut} onCheckedChange={(v) => setHasDieCut(!!v)} /> تقطيع سكيني (Die-cut)</label>
+                    <label className="flex items-center gap-2 text-sm"><Checkbox checked={hasGluing} onCheckedChange={(v) => setHasGluing(!!v)} /> تلصيق (Gluing)</label>
+                  </div>
+                </>)}
+
+                {isLabels && (<>
+                  <div className="col-span-2 text-xs text-muted-foreground rounded-lg bg-accent p-3">
+                    ملصقات وستيكرز — أدخل مقاس الملصق بالميليمتر واختر الطريقة والشكل النهائي.
+                  </div>
+                  <div className="space-y-1"><Label>عرض الملصق (مم)</Label><Input type="number" min={5} value={labelW} onChange={(e) => setLabelW(Math.max(5, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>ارتفاع الملصق (مم)</Label><Input type="number" min={5} value={labelH} onChange={(e) => setLabelH(Math.max(5, +e.target.value))} /></div>
+                  <div className="space-y-1"><Label>طريقة الطباعة</Label>
+                    <select className="w-full h-10 rounded-md border bg-transparent px-3" value={labelMethod} onChange={(e) => setLabelMethod(e.target.value as any)}>
+                      <option value="digital">ديجيتال</option>
+                      <option value="flexo">فليكسو</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1"><Label>الشكل</Label>
+                    <select className="w-full h-10 rounded-md border bg-transparent px-3" value={labelForm} onChange={(e) => setLabelForm(e.target.value as any)}>
+                      <option value="roll">رول (Roll)</option>
+                      <option value="sheet">أفرخ (Sheet)</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm col-span-2"><Checkbox checked={hasDieCut} onCheckedChange={(v) => setHasDieCut(!!v)} /> تقطيع سكيني (Die-cut)</label>
+                </>)}
+
+                {isFinishingOnly && (
+                  <div className="col-span-2 space-y-1">
+                    <Label>عدد الأفرخ المستلمة من العميل</Label>
+                    <Input type="number" min={1} value={finishingSheetsCount} onChange={(e) => setFinishingSheetsCount(Math.max(1, +e.target.value))} />
+                    <p className="text-xs text-muted-foreground">خدمة تشطيبات على أفرخ العميل (بدون طباعة أو ورق). اختر التشطيبات في خطوة "التشطيبات".</p>
+                  </div>
+                )}
+
+                {!isPackaging && !isLabels && !isFinishingOnly && (<>
+                  <div className="space-y-1"><Label>مقاس الفرخ</Label>
+                    <select className="w-full h-10 rounded-md border bg-transparent px-3" value={sheetSize} onChange={(e) => setSheetSize(e.target.value as any)}>
+                      <option value="50x70">50×70 (HP Indigo 12K)</option>
+                      <option value="33x48">33×48</option>
+                      <option value="custom">مخصص</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1"><Label>عدد النسخ في الفرخ</Label><Input type="number" min={1} value={copiesPerSheet} onChange={(e) => setCopiesPerSheet(Math.max(1, +e.target.value))} /></div>
+                </>)}
               </div>
             )}
             {step === 3 && (
