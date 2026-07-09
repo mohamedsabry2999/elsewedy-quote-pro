@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText, Eye, ShieldAlert, Clock, X } from "lucide-react";
+import { Plus, Search, FileText, Eye, ShieldAlert, Clock, X, Upload } from "lucide-react";
 import { currency, dateAr } from "@/lib/format";
+import { SmartImportModal } from "@/components/SmartImportModal";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/quotations/")({
   head: () => ({ meta: [{ title: "عروض الأسعار — Elsewedy Smart Quotation" }] }),
@@ -40,6 +42,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 function QuotationsPage() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
@@ -50,6 +53,7 @@ function QuotationsPage() {
   const [maxValue, setMaxValue] = useState<string>("");
   const [needsApproval, setNeedsApproval] = useState(false);
   const [expiringSoon, setExpiringSoon] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: quotations = [] } = useQuery({
     queryKey: ["quotations"],
@@ -110,8 +114,14 @@ function QuotationsPage() {
           <h1 className="text-2xl font-bold">عروض الأسعار</h1>
           <p className="text-sm text-muted-foreground">جميع عروض الأسعار المُعدّة في النظام</p>
         </div>
-        <Button asChild className="gradient-primary"><Link to="/quotations/new"><Plus className="size-4 ms-1" /> عرض سعر جديد</Link></Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="size-4 ms-1" /> رفع بيانات</Button>
+          <Button asChild className="gradient-primary"><Link to="/quotations/new"><Plus className="size-4 ms-1" /> عرض سعر جديد</Link></Button>
+        </div>
       </div>
+
+      <SmartImportModal open={importOpen} onOpenChange={setImportOpen} module="quotations"
+        onComplete={() => qc.invalidateQueries({ queryKey: ["quotations"] })} />
 
       <Card>
         <CardHeader className="space-y-3">

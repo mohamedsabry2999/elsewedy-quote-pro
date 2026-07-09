@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { Factory, Search, Eye, Pencil } from "lucide-react";
+import { Factory, Search, Eye, Pencil, Upload } from "lucide-react";
+import { SmartImportModal } from "@/components/SmartImportModal";
 import { currency, dateAr } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ function JobOrdersPage() {
   const auth = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: jobOrders = [], isLoading } = useQuery({
     queryKey: ["job-orders"],
@@ -75,7 +77,13 @@ function JobOrdersPage() {
           <h1 className="text-2xl font-bold">أوامر التشغيل</h1>
           <p className="text-sm text-muted-foreground">متابعة الإنتاج من العرض المقبول حتى التسليم</p>
         </div>
+        {canManage && (
+          <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="size-4 ms-1" /> رفع بيانات</Button>
+        )}
       </div>
+
+      <SmartImportModal open={importOpen} onOpenChange={setImportOpen} module="job_orders"
+        onComplete={() => qc.invalidateQueries({ queryKey: ["job-orders"] })} />
 
       <Card>
         <CardHeader>

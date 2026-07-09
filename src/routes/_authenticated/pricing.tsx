@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { canManagePricing } from "@/lib/roles";
-import { Save, DollarSign } from "lucide-react";
+import { Save, DollarSign, Upload } from "lucide-react";
+import { SmartImportModal } from "@/components/SmartImportModal";
 
 export const Route = createFileRoute("/_authenticated/pricing")({
   head: () => ({ meta: [{ title: "قواعد التسعير — Elsewedy Smart Quotation" }] }),
@@ -33,6 +34,7 @@ function PricingPage() {
   const qc = useQueryClient();
   const canEdit = canManagePricing(auth.roles);
   const [edits, setEdits] = useState<Record<string, number>>({});
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: rules = [] } = useQuery({
     queryKey: ["pricing-rules-admin"],
@@ -66,10 +68,16 @@ function PricingPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><DollarSign className="size-6 text-gold" /> قواعد التسعير</h1>
           <p className="text-sm text-muted-foreground">تحكم كامل في أسعار الورق، الطباعة، التشطيبات، الهوامش، والخصومات</p>
         </div>
-        <Button onClick={() => save.mutate()} disabled={Object.keys(edits).length === 0 || save.isPending} className="gradient-primary">
-          <Save className="size-4 ms-1" /> حفظ التعديلات ({Object.keys(edits).length})
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="size-4 ms-1" /> رفع بيانات</Button>
+          <Button onClick={() => save.mutate()} disabled={Object.keys(edits).length === 0 || save.isPending} className="gradient-primary">
+            <Save className="size-4 ms-1" /> حفظ التعديلات ({Object.keys(edits).length})
+          </Button>
+        </div>
       </div>
+
+      <SmartImportModal open={importOpen} onOpenChange={setImportOpen} module="pricing_rules"
+        onComplete={() => { qc.invalidateQueries({ queryKey: ["pricing-rules-admin"] }); qc.invalidateQueries({ queryKey: ["pricing-rules"] }); }} />
 
       {Object.entries(grouped).map(([cat, items]) => (
         <Card key={cat}>
