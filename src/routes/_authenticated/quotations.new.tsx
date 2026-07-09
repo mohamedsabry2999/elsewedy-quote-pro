@@ -159,7 +159,7 @@ function WizardPage() {
       sheetSize, copiesPerSheet, quantity, paperKey, printingSides, colors: (colors as 1 | 4),
       specialInks, finishingKeys, marginPct, discountPct,
     }, rules);
-  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, laminateKey, finishingSheetsCount]);
+  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, finishingSheetsCount]);
 
 
   const approvalRequired = marginPct < minMargin || discountPct > maxDiscount;
