@@ -49,7 +49,7 @@ export function applyTax<T extends Omit<PricingBreakdown, "priceBeforeTax" | "ta
 
 /* ============================== Digital ============================== */
 
-export interface DigitalInput {
+export interface DigitalInput extends TaxOptions {
   sheetSize: "50x70" | "33x48" | "custom";
   copiesPerSheet: number;
   quantity: number;
@@ -84,14 +84,16 @@ export function calcDigital(input: DigitalInput, rules: RuleMap): PricingBreakdo
   const profit = totalCost * (input.marginPct / 100);
   const subtotal = totalCost + profit;
   const discount = subtotal * (input.discountPct / 100);
-  const finalPrice = subtotal - discount;
 
-  return { paperCost, printingCost, finishingCost, specialInkCost, wasteCost, setupCost, totalCost, profit, subtotal, discount, finalPrice, sheetsNeeded, wastePct };
+  return applyTax(
+    { paperCost, printingCost, finishingCost, specialInkCost, wasteCost, setupCost, totalCost, profit, subtotal, discount, sheetsNeeded, wastePct },
+    { taxEnabled: input.taxEnabled, taxPct: input.taxPct },
+  );
 }
 
 /* ============================== Offset ============================== */
 
-export interface OffsetInput {
+export interface OffsetInput extends TaxOptions {
   quantity: number;
   copiesPerSheet: number;
   paperKey: string;
@@ -120,19 +122,21 @@ export function calcOffset(input: OffsetInput, rules: RuleMap): PricingBreakdown
   const profit = totalCost * (input.marginPct / 100);
   const subtotal = totalCost + profit;
   const discount = subtotal * (input.discountPct / 100);
-  const finalPrice = subtotal - discount;
 
-  return { paperCost, printingCost, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, finalPrice, sheetsNeeded, wastePct };
+  return applyTax(
+    { paperCost, printingCost, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, sheetsNeeded, wastePct },
+    { taxEnabled: input.taxEnabled, taxPct: input.taxPct },
+  );
 }
 
 /* ============================== Packaging (Folding cartons) ============================== */
 
-export interface PackagingInput {
+export interface PackagingInput extends TaxOptions {
   quantity: number;
-  boxLengthCm: number;   // L
-  boxWidthCm: number;    // W
-  boxHeightCm: number;   // H
-  boardKey: string;      // pricing_rules paper.* key (board)
+  boxLengthCm: number;
+  boxWidthCm: number;
+  boxHeightCm: number;
+  boardKey: string;
   colors: number;
   printingSides: 1 | 2;
   finishingKeys: string[];
@@ -144,13 +148,9 @@ export interface PackagingInput {
 }
 
 export function calcPackaging(input: PackagingInput, rules: RuleMap): PricingBreakdown {
-  // Approximate unfolded blank area (a very common straight-tuck / reverse-tuck estimate):
-  // area ≈ (2L + 2W + tab) * (H + 2W + flaps). We simplify to (2L+2W+3) * (H+2W+4).
   const blankLenCm = 2 * input.boxLengthCm + 2 * input.boxWidthCm + 3;
   const blankHeiCm = input.boxHeightCm + 2 * input.boxWidthCm + 4;
-  const blankAreaCm2 = Math.max(50, blankLenCm * blankHeiCm);
 
-  // Fit into a 70x100 offset sheet (700x1000 mm ≈ 70x100 cm) with 1cm gutter.
   const sheetL = 100, sheetW = 70;
   const upsL = Math.max(1, Math.floor(sheetL / (blankLenCm + 1)));
   const upsW = Math.max(1, Math.floor(sheetW / (blankHeiCm + 1)));
@@ -174,21 +174,23 @@ export function calcPackaging(input: PackagingInput, rules: RuleMap): PricingBre
   const profit = totalCost * (input.marginPct / 100);
   const subtotal = totalCost + profit;
   const discount = subtotal * (input.discountPct / 100);
-  const finalPrice = subtotal - discount;
 
-  return { paperCost, printingCost, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, finalPrice, sheetsNeeded, wastePct };
+  return applyTax(
+    { paperCost, printingCost, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, sheetsNeeded, wastePct },
+    { taxEnabled: input.taxEnabled, taxPct: input.taxPct },
+  );
 }
 
 /* ============================== Labels / Stickers ============================== */
 
-export interface LabelsInput {
+export interface LabelsInput extends TaxOptions {
   quantity: number;
   labelWidthMm: number;
   labelHeightMm: number;
-  materialKey: string;   // pricing_rules paper.* (label stock)
+  materialKey: string;
   method: "digital" | "flexo";
   colors: number;
-  laminateKey?: string;  // finishing.* (e.g. gloss_lam)
+  laminateKey?: string;
   hasDieCut: boolean;
   form: "roll" | "sheet";
   wastePctOverride?: number;
@@ -201,7 +203,7 @@ export function calcLabels(input: LabelsInput, rules: RuleMap): PricingBreakdown
   const wastePct = input.wastePctOverride ?? rules["waste.labels_pct"] ?? 4;
   const totalAreaM2 = areaM2PerLabel * input.quantity * (1 + wastePct / 100);
 
-  const materialRate = rules[`paper.${input.materialKey}`] ?? rules["paper.label_pp_white"] ?? 55; // per m²
+  const materialRate = rules[`paper.${input.materialKey}`] ?? rules["paper.label_pp_white"] ?? 55;
   const paperCost = totalAreaM2 * materialRate;
 
   const clickRate = input.method === "digital"
@@ -221,14 +223,16 @@ export function calcLabels(input: LabelsInput, rules: RuleMap): PricingBreakdown
   const profit = totalCost * (input.marginPct / 100);
   const subtotal = totalCost + profit;
   const discount = subtotal * (input.discountPct / 100);
-  const finalPrice = subtotal - discount;
 
-  return { paperCost, printingCost, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, finalPrice, sheetsNeeded, wastePct };
+  return applyTax(
+    { paperCost, printingCost, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, sheetsNeeded, wastePct },
+    { taxEnabled: input.taxEnabled, taxPct: input.taxPct },
+  );
 }
 
 /* ============================== Finishing-only service ============================== */
 
-export interface FinishingOnlyInput {
+export interface FinishingOnlyInput extends TaxOptions {
   sheetsCount: number;
   finishingKeys: string[];
   marginPct: number;
@@ -242,9 +246,9 @@ export function calcFinishingOnly(input: FinishingOnlyInput, rules: RuleMap): Pr
   const profit = totalCost * (input.marginPct / 100);
   const subtotal = totalCost + profit;
   const discount = subtotal * (input.discountPct / 100);
-  const finalPrice = subtotal - discount;
-  return {
-    paperCost: 0, printingCost: 0, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost,
-    totalCost, profit, subtotal, discount, finalPrice, sheetsNeeded: input.sheetsCount, wastePct: 0,
-  };
+  return applyTax(
+    { paperCost: 0, printingCost: 0, finishingCost, specialInkCost: 0, wasteCost: 0, setupCost, totalCost, profit, subtotal, discount, sheetsNeeded: input.sheetsCount, wastePct: 0 },
+    { taxEnabled: input.taxEnabled, taxPct: input.taxPct },
+  );
 }
+
