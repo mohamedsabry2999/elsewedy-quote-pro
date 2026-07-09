@@ -486,10 +486,17 @@ function WizardPage() {
               <Row label={`الربح (${percent(marginPct)})`} value={currency(breakdown.profit)} />
               <Row label="المجموع قبل الخصم" value={currency(breakdown.subtotal)} />
               <Row label={`الخصم (${percent(discountPct)})`} value={`- ${currency(breakdown.discount)}`} />
+              <Row label="السعر قبل الضريبة" value={currency(breakdown.priceBeforeTax)} />
               <div className="border-t my-2" />
             </>}
+            {!showCosts && (
+              <>
+                <Row label="السعر قبل الضريبة" value={currency(breakdown.priceBeforeTax)} />
+              </>
+            )}
+            {breakdown.taxEnabled && <Row label={`ضريبة (${percent(breakdown.taxPct)})`} value={currency(breakdown.taxAmount)} />}
             <div className="rounded-lg gradient-primary text-primary-foreground p-3 mt-2">
-              <div className="text-xs opacity-80">السعر النهائي</div>
+              <div className="text-xs opacity-80">السعر النهائي {breakdown.taxEnabled ? "شامل الضريبة" : ""}</div>
               <div className="text-2xl font-bold">{currency(breakdown.finalPrice)}</div>
               <div className="text-[11px] opacity-80 mt-1">سعر الوحدة: {currency(breakdown.finalPrice / Math.max(1, quantity))}</div>
             </div>
