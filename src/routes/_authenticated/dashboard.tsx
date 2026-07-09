@@ -34,7 +34,7 @@ function Dashboard() {
   const { data: quotations = [] } = useQuery({
     queryKey: ["quotations-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("quotations").select("*, customers(company_name), profiles:sales_rep_id(full_name)").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("quotations").select("*, customers(company_name)").order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
