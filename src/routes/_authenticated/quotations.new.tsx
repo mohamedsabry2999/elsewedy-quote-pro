@@ -85,7 +85,7 @@ function WizardPage() {
   const [labelH, setLabelH] = useState(40);
   const [labelMethod, setLabelMethod] = useState<"digital" | "flexo">("digital");
   const [labelForm, setLabelForm] = useState<"roll" | "sheet">("roll");
-  const [laminateKey, setLaminateKey] = useState<string>("");
+  // (laminate is taken from the first selected finishing option in step 5)
 
   // Finishing-only service
   const [finishingSheetsCount, setFinishingSheetsCount] = useState(1000);
