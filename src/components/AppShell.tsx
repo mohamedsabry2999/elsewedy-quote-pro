@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon, Layers, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
@@ -74,8 +74,14 @@ export function AppShell() {
               <Link to="/finishing" className={navItemCls(pathname.startsWith("/finishing"))}>
                 <Scissors className="size-4" /> خدمات التشطيبات
               </Link>
-              <Link to="/import" className={navItemCls(pathname.startsWith("/import"))}>
-                <FileSpreadsheet className="size-4" /> استيراد Excel
+              <Link to="/item-templates" className={navItemCls(pathname.startsWith("/item-templates"))}>
+                <Layers className="size-4" /> قوالب البنود
+              </Link>
+              <Link to="/import-history" className={navItemCls(pathname.startsWith("/import-history"))}>
+                <History className="size-4" /> سجل رفع البيانات
+              </Link>
+              <Link to="/import" className={navItemCls(pathname.startsWith("/import") && !pathname.startsWith("/import-history"))}>
+                <FileSpreadsheet className="size-4" /> استيراد Excel (قديم)
               </Link>
               <Link to="/settings" className={navItemCls(pathname.startsWith("/settings"))}>
                 <ImageIcon className="size-4" /> إعدادات الهوية والـ PDF
