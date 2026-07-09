@@ -59,10 +59,17 @@ function QuotationsPage() {
     queryKey: ["quotations"],
     queryFn: async () => {
       const { data, error } = await supabase.from("quotations")
-        .select("*, customers(company_name), profiles:sales_rep_id(full_name)")
+        .select("*, customers(company_name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const list = data ?? [];
+      const repIds = Array.from(new Set(list.map((q: any) => q.sales_rep_id).filter(Boolean)));
+      if (repIds.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,full_name").in("id", repIds);
+        const map = new Map((profs ?? []).map((p: any) => [p.id, p.full_name]));
+        list.forEach((q: any) => { q.profiles = { full_name: map.get(q.sales_rep_id) ?? null }; });
+      }
+      return list;
     },
   });
 

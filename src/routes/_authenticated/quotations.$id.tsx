@@ -56,23 +56,34 @@ function QuotationDetail() {
     queryKey: ["quotation", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("quotations")
-        .select("*, customers(*), profiles:sales_rep_id(full_name)")
+        .select("*, customers(*)")
         .eq("id", id).maybeSingle();
       if (error) throw error;
+      if (data?.sales_rep_id) {
+        const { data: p } = await supabase.from("profiles").select("full_name").eq("id", data.sales_rep_id).maybeSingle();
+        (data as any).profiles = { full_name: p?.full_name ?? null };
+      }
       return data;
     },
   });
 
   const { data: items = [] } = useQuery({
     queryKey: ["quotation-items", id],
-    queryFn: async () => (await supabase.from("quotation_items").select("*").eq("quotation_id", id)).data ?? [],
+    queryFn: async () => (await supabase.from("quotation_items").select("*").eq("quotation_id", id).order("sort_order", { ascending: true })).data ?? [],
   });
 
   const { data: activity = [] } = useQuery({
     queryKey: ["activity", id],
     queryFn: async () => {
-      const { data } = await supabase.from("activity_log").select("*, profiles:user_id(full_name)").eq("quotation_id", id).order("created_at", { ascending: false });
-      return data ?? [];
+      const { data } = await supabase.from("activity_log").select("*").eq("quotation_id", id).order("created_at", { ascending: false });
+      const rows = data ?? [];
+      const ids = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,full_name").in("id", ids);
+        const m = new Map((profs ?? []).map((p: any) => [p.id, p.full_name]));
+        rows.forEach((r: any) => { r.profiles = { full_name: m.get(r.user_id) ?? null }; });
+      }
+      return rows;
     },
   });
 
