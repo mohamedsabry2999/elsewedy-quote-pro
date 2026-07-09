@@ -21,6 +21,10 @@ export interface CompanySettings {
   tax_number?: string;
   terms?: string;
   footer?: string;
+  logo_data_url?: string;
+  brand_primary?: string;
+  brand_primary_end?: string;
+  brand_accent?: string;
 }
 
 export const DEFAULT_COMPANY: CompanySettings = {
@@ -32,7 +36,20 @@ export const DEFAULT_COMPANY: CompanySettings = {
   website: "www.elsewedy-print.com",
   terms: "الأسعار سارية خلال فترة الصلاحية الموضحة أدناه. تُحتسب أي تعديلات على المواصفات في السعر النهائي.",
   footer: "شكراً لاختياركم Elsewedy Print House — نلتزم بأعلى معايير الجودة والدقة في التسليم.",
+  brand_primary: "#1c2b58",
+  brand_primary_end: "#3b5199",
+  brand_accent: "#b48a3b",
 };
+
+export function loadCompanySettings(): CompanySettings {
+  if (typeof window === "undefined") return DEFAULT_COMPANY;
+  try {
+    const saved = localStorage.getItem("elsewedy-company");
+    return saved ? { ...DEFAULT_COMPANY, ...JSON.parse(saved) } : DEFAULT_COMPANY;
+  } catch {
+    return DEFAULT_COMPANY;
+  }
+}
 
 let cairoBase64Cache: string | null = null;
 async function loadCairoFont(): Promise<string> {
