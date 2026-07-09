@@ -122,8 +122,12 @@ function WizardPage() {
 
   const papers = useMemo(() => rulesRaw.filter((r: any) => r.category === "paper"), [rulesRaw]);
   const finishingOptions = useMemo(() => rulesRaw.filter((r: any) => r.category === "finishing"), [rulesRaw]);
-  const minMargin = rules["margin.minimum_pct"] ?? 12;
-  const maxDiscount = rules["discount.max_pct"] ?? 10;
+  const minMargin = rules["config.min_margin_pct"] ?? rules["margin.minimum_pct"] ?? 10;
+  const maxDiscount = rules["config.max_discount_pct"] ?? rules["discount.max_pct"] ?? 15;
+  const highValueThreshold = rules["config.high_value_threshold"] ?? 50000;
+  const defaultTaxPct = rules["config.default_tax_pct"] ?? 14;
+  const defaultValidityDays = rules["config.default_validity_days"] ?? 30;
+  const defaultDeliveryDays = rules["config.default_delivery_days"] ?? 7;
 
   const isPackaging = ["folding_cartons", "paper_packaging", "pharma", "cosmetics", "food"].includes(category);
   const isLabels = category === "labels";
@@ -133,14 +137,19 @@ function WizardPage() {
 
   useEffect(() => {
     setMarginPct(rules["margin.default_pct"] ?? 25);
-  }, [rules]);
+    if (rules["config.default_tax_pct"]) setTaxPct(defaultTaxPct);
+    if (rules["config.default_validity_days"]) setValidityDays(defaultValidityDays);
+    if (rules["config.default_delivery_days"]) setDeliveryDays(defaultDeliveryDays);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulesRaw]);
 
   const breakdown: PricingBreakdown = useMemo(() => {
+    const taxOpts = { taxEnabled, taxPct };
     if (isPackaging) {
       return calcPackaging({
         quantity, boxLengthCm: boxL, boxWidthCm: boxW, boxHeightCm: boxH,
         boardKey: paperKey, colors, printingSides, finishingKeys,
-        hasDieCut, hasGluing, marginPct, discountPct,
+        hasDieCut, hasGluing, marginPct, discountPct, ...taxOpts,
       }, rules);
     }
     if (isLabels) {
@@ -148,23 +157,26 @@ function WizardPage() {
         quantity, labelWidthMm: labelW, labelHeightMm: labelH,
         materialKey: paperKey, method: labelMethod, colors,
         laminateKey: finishingKeys[0] || undefined, hasDieCut, form: labelForm,
-        marginPct, discountPct,
+        marginPct, discountPct, ...taxOpts,
       }, rules);
     }
     if (isFinishingOnly) {
-      return calcFinishingOnly({ sheetsCount: finishingSheetsCount, finishingKeys, marginPct, discountPct }, rules);
+      return calcFinishingOnly({ sheetsCount: finishingSheetsCount, finishingKeys, marginPct, discountPct, ...taxOpts }, rules);
     }
     if (isOffset) {
-      return calcOffset({ quantity, copiesPerSheet, paperKey, colors, printingSides, finishingKeys, marginPct, discountPct }, rules);
+      return calcOffset({ quantity, copiesPerSheet, paperKey, colors, printingSides, finishingKeys, marginPct, discountPct, ...taxOpts }, rules);
     }
     return calcDigital({
       sheetSize, copiesPerSheet, quantity, paperKey, printingSides, colors: (colors as 1 | 4),
-      specialInks, finishingKeys, marginPct, discountPct,
+      specialInks, finishingKeys, marginPct, discountPct, ...taxOpts,
     }, rules);
-  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, finishingSheetsCount]);
+  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, finishingSheetsCount, taxEnabled, taxPct]);
 
 
-  const approvalRequired = marginPct < minMargin || discountPct > maxDiscount;
+  const approvalRequired =
+    marginPct < minMargin ||
+    discountPct > maxDiscount ||
+    breakdown.finalPrice > highValueThreshold;
 
   const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
