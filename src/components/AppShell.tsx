@@ -1,8 +1,10 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles, Scissors, FileSpreadsheet, Factory } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Printer, Plus, DollarSign, Sparkles, Scissors, FileSpreadsheet, Factory, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
+
+const OWNER_EMAIL = "mohamedsabryabdelfatah@gmail.com";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -57,9 +59,12 @@ export function AppShell() {
               </Link>
             );
           })}
-          {canManagePricing(auth.roles) && (
+          {(canManagePricing(auth.roles) || auth.email?.toLowerCase() === OWNER_EMAIL) && (
             <>
               <div className="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider opacity-60">الإدارة</div>
+              <Link to="/users" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/users") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
+                <Shield className="size-4" /> المستخدمون والصلاحيات
+              </Link>
               <Link to="/pricing" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${pathname.startsWith("/pricing") ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50"}`}>
                 <DollarSign className="size-4" /> قواعد التسعير
               </Link>
