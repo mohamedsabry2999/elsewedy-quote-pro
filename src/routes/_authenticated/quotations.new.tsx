@@ -102,6 +102,8 @@ function WizardPage() {
   const [paymentTerms, setPaymentTerms] = useState("50٪ مقدم — 50٪ عند التسليم");
   const [marginPct, setMarginPct] = useState(25);
   const [discountPct, setDiscountPct] = useState(0);
+  const [taxEnabled, setTaxEnabled] = useState(true);
+  const [taxPct, setTaxPct] = useState(14);
   const [customerNotes, setCustomerNotes] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
 
