@@ -97,6 +97,53 @@ export type Database = {
         }
         Relationships: []
       }
+      job_orders: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          job_order_number: string
+          production_notes: string | null
+          production_status: string
+          quotation_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          job_order_number?: string
+          production_notes?: string | null
+          production_status?: string
+          quotation_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          job_order_number?: string
+          production_notes?: string | null
+          production_status?: string
+          quotation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_orders_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_rules: {
         Row: {
           category: string
@@ -223,7 +270,11 @@ export type Database = {
           specs: Json | null
           status: string
           subtotal: number | null
+          tax_amount: number
+          tax_enabled: boolean
+          tax_pct: number
           total_cost: number | null
+          unit_price: number
           updated_at: string
           validity_days: number | null
         }
@@ -248,7 +299,11 @@ export type Database = {
           specs?: Json | null
           status?: string
           subtotal?: number | null
+          tax_amount?: number
+          tax_enabled?: boolean
+          tax_pct?: number
           total_cost?: number | null
+          unit_price?: number
           updated_at?: string
           validity_days?: number | null
         }
@@ -273,7 +328,11 @@ export type Database = {
           specs?: Json | null
           status?: string
           subtotal?: number | null
+          tax_amount?: number
+          tax_enabled?: boolean
+          tax_pct?: number
           total_cost?: number | null
+          unit_price?: number
           updated_at?: string
           validity_days?: number | null
         }
@@ -327,6 +386,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_job_order_number: { Args: never; Returns: string }
       next_quotation_number: { Args: never; Returns: string }
     }
     Enums: {

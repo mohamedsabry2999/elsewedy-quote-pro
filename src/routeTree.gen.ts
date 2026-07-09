@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedQuotationsRouteImport } from './routes/_authenticated/quotations'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
+import { Route as AuthenticatedJobOrdersRouteImport } from './routes/_authenticated/job-orders'
 import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
 import { Route as AuthenticatedFinishingRouteImport } from './routes/_authenticated/finishing'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -49,6 +50,11 @@ const AuthenticatedQuotationsRoute = AuthenticatedQuotationsRouteImport.update({
 const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedJobOrdersRoute = AuthenticatedJobOrdersRouteImport.update({
+  id: '/job-orders',
+  path: '/job-orders',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedImportRoute = AuthenticatedImportRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/finishing': typeof AuthenticatedFinishingRoute
   '/import': typeof AuthenticatedImportRoute
+  '/job-orders': typeof AuthenticatedJobOrdersRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/quotations': typeof AuthenticatedQuotationsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/finishing': typeof AuthenticatedFinishingRoute
   '/import': typeof AuthenticatedImportRoute
+  '/job-orders': typeof AuthenticatedJobOrdersRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/quotations': typeof AuthenticatedQuotationsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/finishing': typeof AuthenticatedFinishingRoute
   '/_authenticated/import': typeof AuthenticatedImportRoute
+  '/_authenticated/job-orders': typeof AuthenticatedJobOrdersRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/quotations': typeof AuthenticatedQuotationsRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/finishing'
     | '/import'
+    | '/job-orders'
     | '/pricing'
     | '/quotations'
     | '/settings'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/finishing'
     | '/import'
+    | '/job-orders'
     | '/pricing'
     | '/quotations'
     | '/settings'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/finishing'
     | '/_authenticated/import'
+    | '/_authenticated/job-orders'
     | '/_authenticated/pricing'
     | '/_authenticated/quotations'
     | '/_authenticated/settings'
@@ -216,6 +228,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof AuthenticatedPricingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/job-orders': {
+      id: '/_authenticated/job-orders'
+      path: '/job-orders'
+      fullPath: '/job-orders'
+      preLoaderRoute: typeof AuthenticatedJobOrdersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/import': {
@@ -284,6 +303,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFinishingRoute: typeof AuthenticatedFinishingRoute
   AuthenticatedImportRoute: typeof AuthenticatedImportRoute
+  AuthenticatedJobOrdersRoute: typeof AuthenticatedJobOrdersRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedQuotationsRoute: typeof AuthenticatedQuotationsRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -294,6 +314,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFinishingRoute: AuthenticatedFinishingRoute,
   AuthenticatedImportRoute: AuthenticatedImportRoute,
+  AuthenticatedJobOrdersRoute: AuthenticatedJobOrdersRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedQuotationsRoute: AuthenticatedQuotationsRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

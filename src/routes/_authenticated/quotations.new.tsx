@@ -102,6 +102,8 @@ function WizardPage() {
   const [paymentTerms, setPaymentTerms] = useState("50٪ مقدم — 50٪ عند التسليم");
   const [marginPct, setMarginPct] = useState(25);
   const [discountPct, setDiscountPct] = useState(0);
+  const [taxEnabled, setTaxEnabled] = useState(true);
+  const [taxPct, setTaxPct] = useState(14);
   const [customerNotes, setCustomerNotes] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
 
@@ -120,8 +122,12 @@ function WizardPage() {
 
   const papers = useMemo(() => rulesRaw.filter((r: any) => r.category === "paper"), [rulesRaw]);
   const finishingOptions = useMemo(() => rulesRaw.filter((r: any) => r.category === "finishing"), [rulesRaw]);
-  const minMargin = rules["margin.minimum_pct"] ?? 12;
-  const maxDiscount = rules["discount.max_pct"] ?? 10;
+  const minMargin = rules["config.min_margin_pct"] ?? rules["margin.minimum_pct"] ?? 10;
+  const maxDiscount = rules["config.max_discount_pct"] ?? rules["discount.max_pct"] ?? 15;
+  const highValueThreshold = rules["config.high_value_threshold"] ?? 50000;
+  const defaultTaxPct = rules["config.default_tax_pct"] ?? 14;
+  const defaultValidityDays = rules["config.default_validity_days"] ?? 30;
+  const defaultDeliveryDays = rules["config.default_delivery_days"] ?? 7;
 
   const isPackaging = ["folding_cartons", "paper_packaging", "pharma", "cosmetics", "food"].includes(category);
   const isLabels = category === "labels";
@@ -131,14 +137,19 @@ function WizardPage() {
 
   useEffect(() => {
     setMarginPct(rules["margin.default_pct"] ?? 25);
-  }, [rules]);
+    if (rules["config.default_tax_pct"]) setTaxPct(defaultTaxPct);
+    if (rules["config.default_validity_days"]) setValidityDays(defaultValidityDays);
+    if (rules["config.default_delivery_days"]) setDeliveryDays(defaultDeliveryDays);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulesRaw]);
 
   const breakdown: PricingBreakdown = useMemo(() => {
+    const taxOpts = { taxEnabled, taxPct };
     if (isPackaging) {
       return calcPackaging({
         quantity, boxLengthCm: boxL, boxWidthCm: boxW, boxHeightCm: boxH,
         boardKey: paperKey, colors, printingSides, finishingKeys,
-        hasDieCut, hasGluing, marginPct, discountPct,
+        hasDieCut, hasGluing, marginPct, discountPct, ...taxOpts,
       }, rules);
     }
     if (isLabels) {
@@ -146,30 +157,40 @@ function WizardPage() {
         quantity, labelWidthMm: labelW, labelHeightMm: labelH,
         materialKey: paperKey, method: labelMethod, colors,
         laminateKey: finishingKeys[0] || undefined, hasDieCut, form: labelForm,
-        marginPct, discountPct,
+        marginPct, discountPct, ...taxOpts,
       }, rules);
     }
     if (isFinishingOnly) {
-      return calcFinishingOnly({ sheetsCount: finishingSheetsCount, finishingKeys, marginPct, discountPct }, rules);
+      return calcFinishingOnly({ sheetsCount: finishingSheetsCount, finishingKeys, marginPct, discountPct, ...taxOpts }, rules);
     }
     if (isOffset) {
-      return calcOffset({ quantity, copiesPerSheet, paperKey, colors, printingSides, finishingKeys, marginPct, discountPct }, rules);
+      return calcOffset({ quantity, copiesPerSheet, paperKey, colors, printingSides, finishingKeys, marginPct, discountPct, ...taxOpts }, rules);
     }
     return calcDigital({
       sheetSize, copiesPerSheet, quantity, paperKey, printingSides, colors: (colors as 1 | 4),
-      specialInks, finishingKeys, marginPct, discountPct,
+      specialInks, finishingKeys, marginPct, discountPct, ...taxOpts,
     }, rules);
-  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, finishingSheetsCount]);
+  }, [isPackaging, isLabels, isFinishingOnly, isOffset, isDigital, quantity, copiesPerSheet, paperKey, colors, printingSides, sheetSize, specialInks, finishingKeys, marginPct, discountPct, rules, boxL, boxW, boxH, hasDieCut, hasGluing, labelW, labelH, labelMethod, labelForm, finishingSheetsCount, taxEnabled, taxPct]);
 
 
-  const approvalRequired = marginPct < minMargin || discountPct > maxDiscount;
+  const approvalRequired =
+    marginPct < minMargin ||
+    discountPct > maxDiscount ||
+    breakdown.finalPrice > highValueThreshold;
 
   const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
   const save = async (finalStatus: "draft" | "pending_approval" | "approved") => {
+    // Validations
     if (!customerId) return toast.error("اختر العميل أولاً");
-    if (!title) return toast.error("أدخل عنوان المنتج");
+    if (!title.trim()) return toast.error("أدخل عنوان المنتج");
+    if (quantity <= 0) return toast.error("الكمية يجب أن تكون أكبر من صفر");
+    if (marginPct < 0) return toast.error("هامش الربح لا يمكن أن يكون سالبًا");
+    if (discountPct < 0 || discountPct > 100) return toast.error("نسبة الخصم غير صحيحة");
+    if (breakdown.finalPrice <= 0) return toast.error("السعر النهائي يجب أن يكون أكبر من صفر");
+    if (isFinishingOnly && finishingKeys.length === 0) return toast.error("اختر خدمة تشطيب واحدة على الأقل");
+
     setSaving(true);
     try {
       const { data: numRow, error: nerr } = await supabase.rpc("next_quotation_number");
@@ -177,6 +198,7 @@ function WizardPage() {
       const quotationNumber = numRow as unknown as string;
 
       const status = approvalRequired && finalStatus !== "draft" ? "pending_approval" : finalStatus;
+      const unitPrice = breakdown.finalPrice / Math.max(1, quantity);
 
       const { data: q, error } = await supabase.from("quotations").insert({
         quotation_number: quotationNumber,
@@ -190,6 +212,10 @@ function WizardPage() {
         discount: breakdown.discount,
         profit_margin_pct: marginPct,
         final_price: breakdown.finalPrice,
+        unit_price: unitPrice,
+        tax_enabled: taxEnabled,
+        tax_pct: taxPct,
+        tax_amount: breakdown.taxAmount,
         payment_terms: paymentTerms,
         delivery_days: deliveryDays,
         validity_days: validityDays,
@@ -199,6 +225,9 @@ function WizardPage() {
         specs: {
           sheetSize, copiesPerSheet, printingSides, colors, specialInks,
           paperKey, finishingKeys, breakdown: { ...breakdown }, title, description,
+          boxL, boxW, boxH, hasDieCut, hasGluing,
+          labelW, labelH, labelMethod, labelForm,
+          finishingSheetsCount,
         } as any,
       }).select("id").single();
       if (error) throw error;
@@ -209,14 +238,14 @@ function WizardPage() {
         description,
         specs: { sheetSize, copiesPerSheet, printingSides, colors, specialInks, paperKey, finishingKeys },
         quantity,
-        unit_price: breakdown.finalPrice / Math.max(1, quantity),
+        unit_price: unitPrice,
         unit_cost: breakdown.totalCost / Math.max(1, quantity),
         total_price: breakdown.finalPrice,
       });
 
       await supabase.from("activity_log").insert({
         quotation_id: q.id, user_id: auth.userId, action: "created",
-        details: { status, approvalRequired },
+        details: { status, approvalRequired, finalPrice: breakdown.finalPrice },
       });
 
       toast.success(`تم إنشاء العرض ${quotationNumber}${approvalRequired ? " — بانتظار اعتماد المدير" : ""}`);
@@ -387,16 +416,32 @@ function WizardPage() {
             )}
             {step === 7 && (
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label>هامش الربح ٪</Label><Input type="number" min={0} value={marginPct} onChange={(e) => setMarginPct(+e.target.value)} /></div>
-                <div className="space-y-1"><Label>خصم ٪</Label><Input type="number" min={0} value={discountPct} onChange={(e) => setDiscountPct(+e.target.value)} /></div>
+                <div className="space-y-1"><Label>هامش الربح ٪</Label><Input type="number" min={0} value={marginPct} onChange={(e) => setMarginPct(Math.max(0, +e.target.value))} /></div>
+                <div className="space-y-1"><Label>خصم ٪</Label><Input type="number" min={0} max={100} value={discountPct} onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, +e.target.value)))} /></div>
+                <div className="col-span-2 rounded-lg border p-3 bg-muted/30 space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <Checkbox checked={taxEnabled} onCheckedChange={(v) => setTaxEnabled(!!v)} />
+                    تفعيل ضريبة القيمة المضافة (VAT)
+                  </label>
+                  {taxEnabled && (
+                    <div className="grid grid-cols-2 gap-3 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">نسبة الضريبة ٪</Label>
+                        <Input type="number" min={0} max={100} value={taxPct} onChange={(e) => setTaxPct(Math.max(0, Math.min(100, +e.target.value)))} />
+                      </div>
+                      <div className="text-xs text-muted-foreground">تُضاف الضريبة على السعر بعد الخصم.</div>
+                    </div>
+                  )}
+                </div>
                 {approvalRequired && (
                   <div className="col-span-2 rounded-lg border border-warning bg-warning/10 p-3 flex items-start gap-2 text-sm">
                     <ShieldAlert className="size-5 text-warning-foreground shrink-0" />
                     <div>
                       <div className="font-semibold">يتطلب اعتماد المدير</div>
-                      <div className="text-xs mt-1">
-                        {marginPct < minMargin && <>هامش الربح أقل من الحد الأدنى ({percent(minMargin)}). </>}
-                        {discountPct > maxDiscount && <>الخصم يتجاوز الحد المسموح ({percent(maxDiscount)}).</>}
+                      <div className="text-xs mt-1 space-y-0.5">
+                        {marginPct < minMargin && <div>• هامش الربح ({percent(marginPct)}) أقل من الحد الأدنى ({percent(minMargin)}).</div>}
+                        {discountPct > maxDiscount && <div>• الخصم ({percent(discountPct)}) يتجاوز الحد المسموح ({percent(maxDiscount)}).</div>}
+                        {breakdown.finalPrice > highValueThreshold && <div>• قيمة العرض ({currency(breakdown.finalPrice)}) تتجاوز حد الاعتماد ({currency(highValueThreshold)}).</div>}
                       </div>
                     </div>
                   </div>
@@ -441,10 +486,17 @@ function WizardPage() {
               <Row label={`الربح (${percent(marginPct)})`} value={currency(breakdown.profit)} />
               <Row label="المجموع قبل الخصم" value={currency(breakdown.subtotal)} />
               <Row label={`الخصم (${percent(discountPct)})`} value={`- ${currency(breakdown.discount)}`} />
+              <Row label="السعر قبل الضريبة" value={currency(breakdown.priceBeforeTax)} />
               <div className="border-t my-2" />
             </>}
+            {!showCosts && (
+              <>
+                <Row label="السعر قبل الضريبة" value={currency(breakdown.priceBeforeTax)} />
+              </>
+            )}
+            {breakdown.taxEnabled && <Row label={`ضريبة (${percent(breakdown.taxPct)})`} value={currency(breakdown.taxAmount)} />}
             <div className="rounded-lg gradient-primary text-primary-foreground p-3 mt-2">
-              <div className="text-xs opacity-80">السعر النهائي</div>
+              <div className="text-xs opacity-80">السعر النهائي {breakdown.taxEnabled ? "شامل الضريبة" : ""}</div>
               <div className="text-2xl font-bold">{currency(breakdown.finalPrice)}</div>
               <div className="text-[11px] opacity-80 mt-1">سعر الوحدة: {currency(breakdown.finalPrice / Math.max(1, quantity))}</div>
             </div>
