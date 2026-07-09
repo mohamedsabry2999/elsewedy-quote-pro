@@ -33,7 +33,29 @@ export type PermissionKey =
   // Production
   | "view_job_orders"
   | "update_job_order_status"
-  | "view_specs_only";
+  | "view_specs_only"
+  // Import
+  | "import_customers"
+  | "import_products"
+  | "import_quotations"
+  | "import_pricing"
+  | "import_job_orders"
+  | "import_users"
+  | "export_import_errors"
+  | "view_import_history"
+  | "rollback_import"
+  // Item template management
+  | "manage_item_templates"
+  | "add_template"
+  | "edit_template"
+  | "delete_template"
+  | "add_custom_field"
+  | "edit_custom_field"
+  | "delete_custom_field"
+  | "manual_price_override"
+  | "view_internal_fields"
+  | "view_cost_fields"
+  | "toggle_pdf_visibility";
 
 export interface PermissionDef {
   key: PermissionKey;
@@ -100,6 +122,36 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "view_specs_only", label: "عرض المواصفات فقط بدون الأسعار" },
     ],
   },
+  {
+    title: "صلاحيات الاستيراد",
+    items: [
+      { key: "import_customers", label: "رفع بيانات العملاء" },
+      { key: "import_products", label: "رفع بيانات المنتجات" },
+      { key: "import_quotations", label: "رفع بيانات عروض الأسعار" },
+      { key: "import_pricing", label: "رفع بيانات إعدادات التسعير" },
+      { key: "import_job_orders", label: "رفع بيانات أوامر التشغيل" },
+      { key: "import_users", label: "رفع بيانات المستخدمين" },
+      { key: "export_import_errors", label: "تصدير أخطاء الاستيراد" },
+      { key: "view_import_history", label: "عرض سجل عمليات الاستيراد" },
+      { key: "rollback_import", label: "التراجع عن عمليات الاستيراد" },
+    ],
+  },
+  {
+    title: "صلاحيات قوالب البنود",
+    items: [
+      { key: "manage_item_templates", label: "إدارة قوالب البنود" },
+      { key: "add_template", label: "إضافة قالب بند" },
+      { key: "edit_template", label: "تعديل قالب بند" },
+      { key: "delete_template", label: "حذف قالب بند" },
+      { key: "add_custom_field", label: "إضافة حقول مخصصة" },
+      { key: "edit_custom_field", label: "تعديل حقول مخصصة" },
+      { key: "delete_custom_field", label: "حذف حقول مخصصة" },
+      { key: "manual_price_override", label: "تعديل السعر يدويًا" },
+      { key: "view_internal_fields", label: "رؤية الحقول الداخلية" },
+      { key: "view_cost_fields", label: "رؤية حقول التكلفة" },
+      { key: "toggle_pdf_visibility", label: "إظهار/إخفاء الحقول في PDF" },
+    ],
+  },
 ];
 
 // Default permissions per role
@@ -113,17 +165,20 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     "approve_quotations", "reject_quotations",
     "view_cost", "view_profit_margin", "edit_discount",
     "view_job_orders",
+    "import_customers", "import_quotations", "view_import_history", "export_import_errors",
   ],
   sales_rep: [
     "access_system", "view_dashboard",
     "create_customer", "edit_customer",
     "create_quotation", "view_own_quotations", "edit_own_quotations", "delete_own_quotations",
     "export_own_pdf", "send_own_whatsapp", "send_own_email",
+    "import_customers",
   ],
   finance: [
     "access_system", "view_dashboard",
     "view_all_quotations", "view_cost", "view_profit_margin",
     "view_financial_reports", "export_reports",
+    "view_import_history",
   ],
   production_viewer: [
     "access_system",

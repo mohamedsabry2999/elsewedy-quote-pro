@@ -148,6 +148,7 @@ export type Database = {
           email: string | null
           follow_up_status: string | null
           id: string
+          import_batch_id: string | null
           industry: string | null
           notes: string | null
           owner_id: string | null
@@ -163,6 +164,7 @@ export type Database = {
           email?: string | null
           follow_up_status?: string | null
           id?: string
+          import_batch_id?: string | null
           industry?: string | null
           notes?: string | null
           owner_id?: string | null
@@ -178,12 +180,319 @@ export type Database = {
           email?: string | null
           follow_up_status?: string | null
           id?: string
+          import_batch_id?: string | null
           industry?: string | null
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
           updated_at?: string
           whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_aliases: {
+        Row: {
+          alias_name: string
+          created_at: string
+          id: string
+          language: string
+          module_name: string
+          system_field: string
+        }
+        Insert: {
+          alias_name: string
+          created_at?: string
+          id?: string
+          language?: string
+          module_name: string
+          system_field: string
+        }
+        Update: {
+          alias_name?: string
+          created_at?: string
+          id?: string
+          language?: string
+          module_name?: string
+          system_field?: string
+        }
+        Relationships: []
+      }
+      import_batches: {
+        Row: {
+          created_at: string
+          failed_rows: number
+          file_name: string
+          id: string
+          is_rolled_back: boolean
+          mapping: Json
+          options: Json
+          rolled_back_at: string | null
+          rolled_back_by: string | null
+          skipped_rows: number
+          status: string
+          success_rows: number
+          target_module: string
+          total_rows: number
+          updated_at: string
+          uploaded_by: string | null
+          uploaded_by_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          failed_rows?: number
+          file_name: string
+          id?: string
+          is_rolled_back?: boolean
+          mapping?: Json
+          options?: Json
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          skipped_rows?: number
+          status?: string
+          success_rows?: number
+          target_module: string
+          total_rows?: number
+          updated_at?: string
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          failed_rows?: number
+          file_name?: string
+          id?: string
+          is_rolled_back?: boolean
+          mapping?: Json
+          options?: Json
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          skipped_rows?: number
+          status?: string
+          success_rows?: number
+          target_module?: string
+          total_rows?: number
+          updated_at?: string
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+        }
+        Relationships: []
+      }
+      import_errors: {
+        Row: {
+          created_at: string
+          error_message: string
+          field_name: string | null
+          id: string
+          import_batch_id: string
+          raw_row_data: Json | null
+          row_number: number
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          field_name?: string | null
+          id?: string
+          import_batch_id: string
+          raw_row_data?: Json | null
+          row_number: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          field_name?: string | null
+          id?: string
+          import_batch_id?: string
+          raw_row_data?: Json | null
+          row_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_errors_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_template_fields: {
+        Row: {
+          conditional_rules: Json
+          created_at: string
+          default_value: string | null
+          field_key: string
+          field_label_ar: string
+          field_label_en: string | null
+          field_type: string
+          formula: Json
+          help_text: string | null
+          id: string
+          included_in_calculation: boolean
+          internal_only: boolean
+          is_active: boolean
+          options: Json
+          placeholder: string | null
+          required: boolean
+          section_id: string | null
+          sort_order: number
+          template_id: string
+          updated_at: string
+          validation_rules: Json
+          visible_to_customer: boolean
+        }
+        Insert: {
+          conditional_rules?: Json
+          created_at?: string
+          default_value?: string | null
+          field_key: string
+          field_label_ar: string
+          field_label_en?: string | null
+          field_type: string
+          formula?: Json
+          help_text?: string | null
+          id?: string
+          included_in_calculation?: boolean
+          internal_only?: boolean
+          is_active?: boolean
+          options?: Json
+          placeholder?: string | null
+          required?: boolean
+          section_id?: string | null
+          sort_order?: number
+          template_id: string
+          updated_at?: string
+          validation_rules?: Json
+          visible_to_customer?: boolean
+        }
+        Update: {
+          conditional_rules?: Json
+          created_at?: string
+          default_value?: string | null
+          field_key?: string
+          field_label_ar?: string
+          field_label_en?: string | null
+          field_type?: string
+          formula?: Json
+          help_text?: string | null
+          id?: string
+          included_in_calculation?: boolean
+          internal_only?: boolean
+          is_active?: boolean
+          options?: Json
+          placeholder?: string | null
+          required?: boolean
+          section_id?: string | null
+          sort_order?: number
+          template_id?: string
+          updated_at?: string
+          validation_rules?: Json
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_template_fields_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "item_template_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_template_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "item_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_template_sections: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          section_key: string
+          section_name: string
+          sort_order: number
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          section_key: string
+          section_name: string
+          sort_order?: number
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          section_key?: string
+          section_name?: string
+          sort_order?: number
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_template_sections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "item_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_templates: {
+        Row: {
+          calculation_config: Json
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name_ar: string
+          name_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          calculation_config?: Json
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name_ar: string
+          name_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          calculation_config?: Json
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name_ar?: string
+          name_en?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -238,6 +547,7 @@ export type Database = {
         Row: {
           category: string
           id: string
+          import_batch_id: string | null
           key: string
           label_ar: string
           meta: Json | null
@@ -248,6 +558,7 @@ export type Database = {
         Insert: {
           category: string
           id?: string
+          import_batch_id?: string | null
           key: string
           label_ar: string
           meta?: Json | null
@@ -258,6 +569,7 @@ export type Database = {
         Update: {
           category?: string
           id?: string
+          import_batch_id?: string | null
           key?: string
           label_ar?: string
           meta?: Json | null
@@ -265,11 +577,20 @@ export type Database = {
           updated_at?: string
           value?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pricing_rules_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           created_at: string
+          department: string | null
           email: string | null
           full_name: string | null
           id: string
@@ -280,6 +601,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          department?: string | null
           email?: string | null
           full_name?: string | null
           id: string
@@ -290,6 +612,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          department?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
@@ -302,16 +625,19 @@ export type Database = {
       }
       quotation_items: {
         Row: {
+          calculation_inputs: Json
           category: string | null
           colors: string | null
           cost_breakdown: Json | null
           created_at: string
+          custom_fields: Json
           customer_notes: string | null
           description: string | null
           discount: number | null
           finishing_options: Json | null
           gsm: string | null
           id: string
+          import_batch_id: string | null
           internal_notes: string | null
           item_number: number | null
           material: string | null
@@ -323,6 +649,8 @@ export type Database = {
           size: string | null
           sort_order: number | null
           specs: Json | null
+          template_id: string | null
+          template_snapshot: Json | null
           title: string
           total_price: number
           unit: string | null
@@ -330,16 +658,19 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          calculation_inputs?: Json
           category?: string | null
           colors?: string | null
           cost_breakdown?: Json | null
           created_at?: string
+          custom_fields?: Json
           customer_notes?: string | null
           description?: string | null
           discount?: number | null
           finishing_options?: Json | null
           gsm?: string | null
           id?: string
+          import_batch_id?: string | null
           internal_notes?: string | null
           item_number?: number | null
           material?: string | null
@@ -351,6 +682,8 @@ export type Database = {
           size?: string | null
           sort_order?: number | null
           specs?: Json | null
+          template_id?: string | null
+          template_snapshot?: Json | null
           title: string
           total_price?: number
           unit?: string | null
@@ -358,16 +691,19 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          calculation_inputs?: Json
           category?: string | null
           colors?: string | null
           cost_breakdown?: Json | null
           created_at?: string
+          custom_fields?: Json
           customer_notes?: string | null
           description?: string | null
           discount?: number | null
           finishing_options?: Json | null
           gsm?: string | null
           id?: string
+          import_batch_id?: string | null
           internal_notes?: string | null
           item_number?: number | null
           material?: string | null
@@ -379,6 +715,8 @@ export type Database = {
           size?: string | null
           sort_order?: number | null
           specs?: Json | null
+          template_id?: string | null
+          template_snapshot?: Json | null
           title?: string
           total_price?: number
           unit?: string | null
@@ -387,10 +725,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "quotation_items_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotation_items_quotation_id_fkey"
             columns: ["quotation_id"]
             isOneToOne: false
             referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "item_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -408,6 +760,7 @@ export type Database = {
           discount: number | null
           final_price: number | null
           id: string
+          import_batch_id: string | null
           internal_notes: string | null
           payment_terms: string | null
           product_category: string | null
@@ -438,6 +791,7 @@ export type Database = {
           discount?: number | null
           final_price?: number | null
           id?: string
+          import_batch_id?: string | null
           internal_notes?: string | null
           payment_terms?: string | null
           product_category?: string | null
@@ -468,6 +822,7 @@ export type Database = {
           discount?: number | null
           final_price?: number | null
           id?: string
+          import_batch_id?: string | null
           internal_notes?: string | null
           payment_terms?: string | null
           product_category?: string | null
@@ -492,6 +847,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
             referencedColumns: ["id"]
           },
         ]
