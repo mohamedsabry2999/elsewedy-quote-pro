@@ -49,6 +49,96 @@ export type Database = {
           },
         ]
       }
+      brand_settings: {
+        Row: {
+          accent_color: string
+          address: string | null
+          bank_account: string | null
+          bank_iban: string | null
+          bank_name: string | null
+          bank_swift: string | null
+          commercial_register: string | null
+          company_name_ar: string
+          company_name_en: string
+          default_payment_terms: string | null
+          default_terms: string | null
+          default_validity_days: number
+          email: string | null
+          id: boolean
+          logo_url: string | null
+          pdf_footer: string | null
+          phone: string | null
+          primary_color: string
+          secondary_color: string
+          show_bank_details: boolean
+          show_qr: boolean
+          signature_url: string | null
+          stamp_url: string | null
+          tax_number: string | null
+          updated_at: string
+          website: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          accent_color?: string
+          address?: string | null
+          bank_account?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_swift?: string | null
+          commercial_register?: string | null
+          company_name_ar?: string
+          company_name_en?: string
+          default_payment_terms?: string | null
+          default_terms?: string | null
+          default_validity_days?: number
+          email?: string | null
+          id?: boolean
+          logo_url?: string | null
+          pdf_footer?: string | null
+          phone?: string | null
+          primary_color?: string
+          secondary_color?: string
+          show_bank_details?: boolean
+          show_qr?: boolean
+          signature_url?: string | null
+          stamp_url?: string | null
+          tax_number?: string | null
+          updated_at?: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          accent_color?: string
+          address?: string | null
+          bank_account?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_swift?: string | null
+          commercial_register?: string | null
+          company_name_ar?: string
+          company_name_en?: string
+          default_payment_terms?: string | null
+          default_terms?: string | null
+          default_validity_days?: number
+          email?: string | null
+          id?: boolean
+          logo_url?: string | null
+          pdf_footer?: string | null
+          phone?: string | null
+          primary_color?: string
+          secondary_color?: string
+          show_bank_details?: boolean
+          show_qr?: boolean
+          signature_url?: string | null
+          stamp_url?: string | null
+          tax_number?: string | null
+          updated_at?: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -212,38 +302,86 @@ export type Database = {
       }
       quotation_items: {
         Row: {
+          category: string | null
+          colors: string | null
+          cost_breakdown: Json | null
           created_at: string
+          customer_notes: string | null
           description: string | null
+          discount: number | null
+          finishing_options: Json | null
+          gsm: string | null
           id: string
+          internal_notes: string | null
+          item_number: number | null
+          material: string | null
+          printing_method: string | null
+          printing_sides: string | null
+          profit_margin_pct: number | null
           quantity: number
           quotation_id: string
+          size: string | null
+          sort_order: number | null
           specs: Json | null
           title: string
           total_price: number
+          unit: string | null
           unit_cost: number | null
           unit_price: number
         }
         Insert: {
+          category?: string | null
+          colors?: string | null
+          cost_breakdown?: Json | null
           created_at?: string
+          customer_notes?: string | null
           description?: string | null
+          discount?: number | null
+          finishing_options?: Json | null
+          gsm?: string | null
           id?: string
+          internal_notes?: string | null
+          item_number?: number | null
+          material?: string | null
+          printing_method?: string | null
+          printing_sides?: string | null
+          profit_margin_pct?: number | null
           quantity?: number
           quotation_id: string
+          size?: string | null
+          sort_order?: number | null
           specs?: Json | null
           title: string
           total_price?: number
+          unit?: string | null
           unit_cost?: number | null
           unit_price?: number
         }
         Update: {
+          category?: string | null
+          colors?: string | null
+          cost_breakdown?: Json | null
           created_at?: string
+          customer_notes?: string | null
           description?: string | null
+          discount?: number | null
+          finishing_options?: Json | null
+          gsm?: string | null
           id?: string
+          internal_notes?: string | null
+          item_number?: number | null
+          material?: string | null
+          printing_method?: string | null
+          printing_sides?: string | null
+          profit_margin_pct?: number | null
           quantity?: number
           quotation_id?: string
+          size?: string | null
+          sort_order?: number | null
           specs?: Json | null
           title?: string
           total_price?: number
+          unit?: string | null
           unit_cost?: number | null
           unit_price?: number
         }
@@ -263,6 +401,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          created_by: string | null
           customer_id: string | null
           customer_notes: string | null
           delivery_days: number | null
@@ -292,6 +431,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          created_by?: string | null
           customer_id?: string | null
           customer_notes?: string | null
           delivery_days?: number | null
@@ -321,6 +461,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          created_by?: string | null
           customer_id?: string | null
           customer_notes?: string | null
           delivery_days?: number | null
