@@ -5,7 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { FileText, Download, MessageCircle, Mail, Printer, ChevronRight, CheckCircle2, XCircle, ArrowRightCircle, Copy } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { FileText, Download, MessageCircle, Mail, Printer, ChevronRight, CheckCircle2, XCircle, ArrowRightCircle, Copy, Trash2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { canSeeCosts, canApprove } from "@/lib/roles";
@@ -18,28 +23,21 @@ export const Route = createFileRoute("/_authenticated/quotations/$id")({
   component: QuotationDetail,
 });
 
-const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; color: string }> = {
-  draft: { label: "مسودة", variant: "outline", color: "text-muted-foreground" },
-  pending_approval: { label: "بانتظار الاعتماد", variant: "secondary", color: "text-warning-foreground" },
-  approved: { label: "معتمد", variant: "default", color: "text-success" },
-  sent: { label: "تم الإرسال", variant: "default", color: "text-primary" },
-  accepted: { label: "مقبول", variant: "default", color: "text-success" },
-  rejected: { label: "مرفوض", variant: "destructive", color: "text-destructive" },
-  converted: { label: "أمر تشغيل", variant: "default", color: "text-primary" },
+const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+  draft: { label: "مسودة", variant: "outline" },
+  pending_approval: { label: "بانتظار الاعتماد", variant: "secondary" },
+  approved: { label: "معتمد", variant: "default" },
+  sent: { label: "تم الإرسال", variant: "default" },
+  accepted: { label: "مقبول", variant: "default" },
+  rejected: { label: "مرفوض", variant: "destructive" },
+  converted: { label: "أمر تشغيل", variant: "default" },
 };
 
 const ACTIONS_LABEL: Record<string, string> = {
-  created: "إنشاء العرض",
-  updated: "تعديل",
-  approved: "اعتماد",
-  rejected: "رفض",
-  sent_whatsapp: "إرسال واتساب",
-  sent_email: "إرسال بريد",
-  pdf_customer: "تحميل PDF للعميل",
-  pdf_internal: "تحميل PDF داخلي",
-  status_changed: "تغيير الحالة",
-  duplicated: "نسخ العرض",
-  converted: "تحويل لأمر تشغيل",
+  created: "إنشاء العرض", updated: "تعديل", approved: "اعتماد", rejected: "رفض",
+  sent_whatsapp: "إرسال واتساب", sent_email: "إرسال بريد", pdf_customer: "تحميل PDF للعميل",
+  pdf_internal: "تحميل PDF داخلي", status_changed: "تغيير الحالة", duplicated: "نسخ العرض",
+  converted: "تحويل لأمر تشغيل", deleted: "حذف",
 };
 
 function QuotationDetail() {
@@ -49,7 +47,9 @@ function QuotationDetail() {
   const navigate = useNavigate();
   const showCosts = canSeeCosts(auth.roles);
   const canAppr = canApprove(auth.roles);
+  const isAdmin = auth.roles.includes("admin");
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [dueDate, setDueDate] = useState("");
 
   const { data: q, isLoading } = useQuery({
     queryKey: ["quotation", id],
@@ -75,6 +75,11 @@ function QuotationDetail() {
     },
   });
 
+  const { data: jobOrder } = useQuery({
+    queryKey: ["job-order-for-quotation", id],
+    queryFn: async () => (await supabase.from("job_orders").select("*").eq("quotation_id", id).maybeSingle()).data,
+  });
+
   const logActivity = async (action: string, details: any = {}) => {
     await supabase.from("activity_log").insert({ quotation_id: id, user_id: auth.userId, action, details });
     qc.invalidateQueries({ queryKey: ["activity", id] });
@@ -92,10 +97,47 @@ function QuotationDetail() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const convertToJobOrder = useMutation({
+    mutationFn: async () => {
+      if (!q) throw new Error("العرض غير متوفر");
+      // Create job_order (number is default from DB)
+      const { data: jo, error } = await supabase.from("job_orders").insert({
+        quotation_id: id,
+        production_status: "pending",
+        due_date: dueDate || null,
+        created_by: auth.userId,
+        production_notes: `عرض ${q.quotation_number} — ${(q as any).customers?.company_name ?? ""}`,
+      }).select("*").single();
+      if (error) throw error;
+      // Update quotation status
+      await supabase.from("quotations").update({ status: "converted" }).eq("id", id);
+      await logActivity("converted", { job_order_number: jo.job_order_number });
+      return jo;
+    },
+    onSuccess: (jo) => {
+      qc.invalidateQueries({ queryKey: ["quotation", id] });
+      qc.invalidateQueries({ queryKey: ["job-order-for-quotation", id] });
+      toast.success(`تم إنشاء أمر التشغيل ${jo.job_order_number}`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteQuotation = useMutation({
+    mutationFn: async () => {
+      // Delete items first (RLS-safe order)
+      await supabase.from("quotation_items").delete().eq("quotation_id", id);
+      await supabase.from("activity_log").delete().eq("quotation_id", id);
+      const { error } = await supabase.from("quotations").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("تم الحذف"); navigate({ to: "/quotations" }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const duplicate = async () => {
     if (!q) return;
     const { data: numRow } = await supabase.rpc("next_quotation_number");
-    const { data: newQ, error } = await supabase.from("quotations").insert({
+    const insertPayload: any = {
       quotation_number: numRow as unknown as string,
       customer_id: q.customer_id, sales_rep_id: auth.userId, status: "draft",
       product_category: q.product_category, quantity: q.quantity, subtotal: q.subtotal,
@@ -103,7 +145,14 @@ function QuotationDetail() {
       final_price: q.final_price, payment_terms: q.payment_terms, delivery_days: q.delivery_days,
       validity_days: q.validity_days, customer_notes: q.customer_notes, internal_notes: q.internal_notes,
       specs: q.specs,
-    }).select("id").single();
+    };
+    if ((q as any).tax_enabled !== undefined) {
+      insertPayload.tax_enabled = (q as any).tax_enabled;
+      insertPayload.tax_pct = (q as any).tax_pct;
+      insertPayload.tax_amount = (q as any).tax_amount;
+      insertPayload.unit_price = (q as any).unit_price;
+    }
+    const { data: newQ, error } = await supabase.from("quotations").insert(insertPayload).select("id").single();
     if (error) { toast.error(error.message); return; }
     for (const it of items) {
       await supabase.from("quotation_items").insert({
@@ -111,12 +160,15 @@ function QuotationDetail() {
         quantity: it.quantity, unit_price: it.unit_price, unit_cost: it.unit_cost, total_price: it.total_price,
       });
     }
+    await logActivity("duplicated", { new_id: newQ.id });
     toast.success("تم نسخ العرض");
     navigate({ to: "/quotations/$id", params: { id: newQ.id } });
   };
 
   const downloadPdf = async (variant: "customer" | "internal") => {
     if (!q) return;
+    if (!(q as any).customers) { toast.error("بيانات العميل ناقصة — لا يمكن إنشاء PDF"); return; }
+    if (items.length === 0) { toast.error("لا توجد بنود في العرض"); return; }
     setPdfBusy(true);
     try {
       const breakdown = (q.specs as any)?.breakdown ?? undefined;
@@ -139,11 +191,18 @@ function QuotationDetail() {
     const customer = (q as any).customers;
     const phone = customer?.whatsapp || customer?.phone;
     if (!phone) { toast.error("لا يوجد رقم واتساب مسجل للعميل"); return; }
+    // Basic phone validation: digits + optional +
+    const cleaned = phone.replace(/[^\d+]/g, "");
+    if (cleaned.length < 8) { toast.error("رقم الواتساب غير صحيح"); return; }
     const productName = items[0]?.title ?? "عرض السعر";
     const msg = whatsappMessage(customer?.contact_person || customer?.company_name || "العميل", productName, q.quotation_number);
     await downloadPdf("customer");
     window.open(whatsappLink(phone, msg), "_blank");
     await logActivity("sent_whatsapp", { phone });
+    if (q.status === "approved" || q.status === "draft") {
+      await supabase.from("quotations").update({ status: "sent" }).eq("id", id);
+      qc.invalidateQueries({ queryKey: ["quotation", id] });
+    }
     toast.success("تم تجهيز الرسالة، برجاء إرفاق ملف الـ PDF الذي تم تحميله.");
   };
 
@@ -164,6 +223,9 @@ function QuotationDetail() {
   const customer = (q as any).customers;
   const breakdown = (q.specs as any)?.breakdown;
   const specs = q.specs as any;
+  const qAny = q as any;
+  const canDelete = isAdmin || (q.status === "draft" && q.sales_rep_id === auth.userId);
+  const canConvert = q.status === "accepted" && !jobOrder;
 
   return (
     <div className="space-y-6">
@@ -180,6 +242,7 @@ function QuotationDetail() {
               <h1 className="text-2xl font-bold font-mono">{q.quotation_number}</h1>
               <Badge variant={STATUS_META[q.status]?.variant}>{STATUS_META[q.status]?.label}</Badge>
               {q.approval_required && q.status === "pending_approval" && <Badge variant="secondary">يتطلب اعتماد</Badge>}
+              {jobOrder && <Badge className="bg-gold text-gold-foreground" variant="default">أمر تشغيل: {jobOrder.job_order_number}</Badge>}
             </div>
             <div className="text-sm text-muted-foreground mt-1">
               {customer?.company_name} • {dateAr(q.created_at)}
@@ -187,7 +250,7 @@ function QuotationDetail() {
             </div>
           </div>
           <div className="text-left">
-            <div className="text-xs text-muted-foreground">القيمة النهائية</div>
+            <div className="text-xs text-muted-foreground">القيمة النهائية {qAny.tax_enabled ? "(شامل الضريبة)" : ""}</div>
             <div className="text-3xl font-bold text-primary">{currency(q.final_price)}</div>
           </div>
         </CardContent>
@@ -224,7 +287,13 @@ function QuotationDetail() {
             <div className="mt-4 space-y-2 border-t pt-4 text-sm">
               <Row label="المجموع قبل الخصم" value={currency(q.subtotal)} />
               {Number(q.discount) > 0 && <Row label="الخصم" value={`- ${currency(q.discount)}`} />}
+              {qAny.tax_enabled && Number(qAny.tax_amount) > 0 && (
+                <Row label={`ضريبة (${percent(qAny.tax_pct)})`} value={currency(qAny.tax_amount)} />
+              )}
               <Row label="السعر النهائي" value={currency(q.final_price)} big />
+              {q.payment_terms && <div className="text-xs text-muted-foreground pt-2">شروط الدفع: {q.payment_terms}</div>}
+              {q.delivery_days && <div className="text-xs text-muted-foreground">مدة التوريد: {q.delivery_days} يوم</div>}
+              {q.validity_days && <div className="text-xs text-muted-foreground">صلاحية العرض: {q.validity_days} يوم</div>}
             </div>
           </CardContent>
         </Card>
@@ -253,27 +322,108 @@ function QuotationDetail() {
               <Button variant="ghost" className="w-full" onClick={duplicate}>
                 <Copy className="size-4 ms-1" /> نسخ العرض
               </Button>
+
               {canAppr && q.status === "pending_approval" && (
                 <div className="border-t pt-2 space-y-2">
-                  <Button className="w-full bg-success text-success-foreground hover:opacity-90" onClick={() => changeStatus.mutate("approved")}>
-                    <CheckCircle2 className="size-4 ms-1" /> اعتماد العرض
-                  </Button>
-                  <Button variant="destructive" className="w-full" onClick={() => changeStatus.mutate("rejected")}>
-                    <XCircle className="size-4 ms-1" /> رفض
-                  </Button>
+                  <ConfirmButton
+                    title="اعتماد العرض"
+                    description="سيتم اعتماد العرض ويمكن إرساله للعميل. متابعة؟"
+                    onConfirm={() => changeStatus.mutate("approved")}
+                    trigger={
+                      <Button className="w-full bg-success text-success-foreground hover:opacity-90">
+                        <CheckCircle2 className="size-4 ms-1" /> اعتماد العرض
+                      </Button>
+                    }
+                  />
+                  <ConfirmButton
+                    title="رفض العرض"
+                    description="سيتم رفض العرض. متابعة؟"
+                    variant="destructive"
+                    onConfirm={() => changeStatus.mutate("rejected")}
+                    trigger={
+                      <Button variant="destructive" className="w-full">
+                        <XCircle className="size-4 ms-1" /> رفض
+                      </Button>
+                    }
+                  />
                 </div>
               )}
+
               {(q.status === "approved" || q.status === "sent") && (
-                <>
-                  <Button variant="outline" className="w-full" onClick={() => changeStatus.mutate("sent")}>وضع كـ "مُرسل"</Button>
-                  <Button variant="outline" className="w-full" onClick={() => changeStatus.mutate("accepted")}>تأشير كمقبول</Button>
-                  <Button variant="outline" className="w-full" onClick={() => changeStatus.mutate("rejected")}>تأشير كمرفوض</Button>
-                </>
+                <div className="border-t pt-2 space-y-2">
+                  {q.status === "approved" && (
+                    <ConfirmButton
+                      title="تأشير كمُرسل"
+                      description="تأكيد أن العرض قد تم إرساله للعميل؟"
+                      onConfirm={() => changeStatus.mutate("sent")}
+                      trigger={<Button variant="outline" className="w-full"><Send className="size-4 ms-1" /> وضع كـ "مُرسل"</Button>}
+                    />
+                  )}
+                  <ConfirmButton
+                    title="تأشير كمقبول"
+                    description="تأكيد قبول العميل للعرض؟"
+                    onConfirm={() => changeStatus.mutate("accepted")}
+                    trigger={<Button variant="outline" className="w-full">تأشير كمقبول</Button>}
+                  />
+                  <ConfirmButton
+                    title="تأشير كمرفوض"
+                    description="تأكيد رفض العميل للعرض؟"
+                    variant="destructive"
+                    onConfirm={() => changeStatus.mutate("rejected")}
+                    trigger={<Button variant="outline" className="w-full">تأشير كمرفوض</Button>}
+                  />
+                </div>
               )}
-              {q.status === "accepted" && (
-                <Button className="w-full gradient-gold text-gold-foreground" onClick={() => changeStatus.mutate("converted")}>
-                  <ArrowRightCircle className="size-4 ms-1" /> تحويل لأمر تشغيل
+
+              {canConvert && (
+                <div className="border-t pt-2 space-y-2">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button className="w-full gradient-gold text-gold-foreground">
+                        <ArrowRightCircle className="size-4 ms-1" /> تحويل لأمر تشغيل
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>تحويل لأمر تشغيل</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          سيتم إنشاء أمر تشغيل جديد مربوط بهذا العرض وتحديث حالته إلى "أمر تشغيل".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-2 py-2">
+                        <label className="text-sm font-medium">تاريخ التسليم المستهدف (اختياري)</label>
+                        <input
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          className="w-full h-10 rounded-md border bg-transparent px-3 text-sm"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => convertToJobOrder.mutate()}>إنشاء أمر التشغيل</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+
+              {jobOrder && (
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/job-orders">عرض أوامر التشغيل</Link>
                 </Button>
+              )}
+
+              {canDelete && (
+                <div className="border-t pt-2">
+                  <ConfirmButton
+                    title="حذف العرض"
+                    description="سيتم حذف العرض وكل بنوده وسجل نشاطه نهائيًا. لا يمكن التراجع."
+                    variant="destructive"
+                    onConfirm={() => deleteQuotation.mutate()}
+                    trigger={<Button variant="ghost" className="w-full text-destructive hover:text-destructive"><Trash2 className="size-4 ms-1" /> حذف نهائي</Button>}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
@@ -335,5 +485,33 @@ function Row({ label, value, big, bold }: { label: string; value: string; big?: 
       <span className={big ? "text-base" : "text-muted-foreground"}>{label}</span>
       <span className={big ? "text-xl text-primary font-bold" : ""}>{value}</span>
     </div>
+  );
+}
+
+function ConfirmButton({
+  title, description, onConfirm, trigger, variant,
+}: {
+  title: string; description: string; onConfirm: () => void; trigger: React.ReactNode;
+  variant?: "default" | "destructive";
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className={variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+          >
+            تأكيد
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
