@@ -242,23 +242,31 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
 
       .sec-title{font-size:13.5px;font-weight:800;color:${primary};border-right:4px solid ${secondary};padding-right:10px;margin:16px 0 8px;line-height:1.5;}
 
-      .item{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff;margin-bottom:10px;}
-      .ihead{background:linear-gradient(135deg,${primary}0d,${secondary}14);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #eef0f3;}
-      .it{display:flex;gap:10px;align-items:center;font-weight:800;font-size:13px;color:${accent};line-height:1.5;min-width:0;flex:1;}
-      .it .t{overflow:hidden;text-overflow:ellipsis;}
-      /* Item badge: fixed height, inline-flex centering. Cairo font (NOT
-         Segoe) so "بند" joins correctly. Number isolated LTR. */
-      .ino{background:${primary};color:#fff;padding:0 10px;height:22px;min-width:56px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:5px;line-height:1;white-space:nowrap;flex-shrink:0;}
-      .ino .n{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;}
-      .iqty{font-size:11.5px;color:${primary};font-weight:800;white-space:nowrap;flex-shrink:0;line-height:1.5;}
+      /* ================= REUSABLE ITEM CARD =================
+         Every item in the quotation renders through the SAME structure and
+         these SAME rules. No per-item overrides anywhere. */
+      .item{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff;margin-bottom:10px;page-break-inside:avoid;break-inside:avoid;}
+      /* Header uses CSS grid (badge | title | qty) — stable across long/short
+         titles and small/large quantities. align-items:center keeps the badge
+         vertically centered even when the title wraps to two lines. */
+      .ihead{background:linear-gradient(135deg,${primary}0d,${secondary}14);padding:10px 12px;display:grid;grid-template-columns:auto 1fr auto;column-gap:12px;align-items:center;border-bottom:1px solid #eef0f3;min-height:44px;}
+      /* Item badge: block-level inline-block with line-height matching height
+         — html2canvas renders this identically for every item (flexbox
+         centering is unstable across items in canvas rasterization). */
+      .ino{background:${primary};color:#fff;padding:0 12px;height:24px;line-height:24px;min-width:60px;border-radius:6px;font-size:11px;font-weight:700;text-align:center;white-space:nowrap;display:inline-block;vertical-align:middle;}
+      .ino .n{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;margin-inline-start:4px;}
+      .it{font-weight:800;font-size:13px;color:${accent};line-height:1.6;min-width:0;overflow-wrap:break-word;word-break:normal;}
+      .it .t{display:block;}
+      .iqty{font-size:11.5px;color:${primary};font-weight:800;white-space:nowrap;line-height:1.6;text-align:left;}
       .idesc{padding:9px 12px 0;font-size:11px;color:#4b5563;line-height:1.7;}
       .specs{padding:10px 12px 6px;display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:11px;color:#374151;}
       .srow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px dotted #eef0f3;padding:4px 0;line-height:1.6;}
       .srow.full{grid-column:1/-1;}
       .srow .k{color:#9ca3af;flex-shrink:0;}
       .srow .v{font-weight:600;color:#1f2937;text-align:left;word-break:break-word;}
-      .price-tbl{width:100%;border-top:1px dashed #e5e7eb;margin-top:6px;font-size:11.5px;border-collapse:collapse;}
-      .price-tbl td{padding:10px 12px;vertical-align:middle;}
+      .price-tbl{width:100%;border-top:1px dashed #e5e7eb;margin-top:6px;font-size:11.5px;border-collapse:collapse;table-layout:fixed;}
+      .price-tbl td{padding:10px 12px;vertical-align:middle;width:33.333%;}
+      .price-tbl td:last-child{text-align:left;}
       .price-tbl .lbl{color:#9ca3af;font-size:10px;margin-bottom:3px;line-height:1.4;}
       .price-tbl .val{font-weight:700;color:${accent};line-height:1.5;}
       .price-tbl .grand{color:${primary};font-weight:800;font-size:14px;}
