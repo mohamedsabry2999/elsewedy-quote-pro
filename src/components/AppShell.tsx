@@ -62,48 +62,35 @@ export function AppShell() {
         </div>
 
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-          {nav.map((n) => {
+          {visibleMain.map((n) => {
             const active = n.to === "/quotations/new"
               ? pathname === "/quotations/new"
               : n.to === "/quotations"
                 ? pathname === "/quotations" || (pathname.startsWith("/quotations/") && pathname !== "/quotations/new")
                 : pathname.startsWith(n.to);
             return (
-              <Link key={n.to} to={n.to}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-                  active ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/60"
-                }`}>
+              <Link key={n.to} to={n.to} className={navItemCls(active)}>
                 <n.icon className="size-4" /> {n.label}
               </Link>
             );
           })}
-          {isAdmin && (
+          {visibleAdmin.length > 0 && (
             <>
               <div className="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider opacity-60">الإدارة</div>
-              <Link to="/users" className={navItemCls(pathname.startsWith("/users"))}>
-                <Shield className="size-4" /> المستخدمون والصلاحيات
-              </Link>
-              <Link to="/pricing" className={navItemCls(pathname.startsWith("/pricing"))}>
-                <DollarSign className="size-4" /> قواعد التسعير
-              </Link>
-              <Link to="/finishing" className={navItemCls(pathname.startsWith("/finishing"))}>
-                <Scissors className="size-4" /> خدمات التشطيبات
-              </Link>
-              <Link to="/item-templates" className={navItemCls(pathname.startsWith("/item-templates"))}>
-                <Layers className="size-4" /> قوالب البنود
-              </Link>
-              <Link to="/import-history" className={navItemCls(pathname.startsWith("/import-history"))}>
-                <History className="size-4" /> سجل رفع البيانات
-              </Link>
-              <Link to="/import" className={navItemCls(pathname.startsWith("/import") && !pathname.startsWith("/import-history"))}>
-                <FileSpreadsheet className="size-4" /> استيراد Excel (قديم)
-              </Link>
-              <Link to="/settings" className={navItemCls(pathname.startsWith("/settings"))}>
-                <ImageIcon className="size-4" /> إعدادات الهوية والـ PDF
-              </Link>
+              {visibleAdmin.map((n) => {
+                const active = n.to === "/import"
+                  ? pathname.startsWith("/import") && !pathname.startsWith("/import-history")
+                  : pathname.startsWith(n.to);
+                return (
+                  <Link key={n.to} to={n.to} className={navItemCls(active)}>
+                    <n.icon className="size-4" /> {n.label}
+                  </Link>
+                );
+              })}
             </>
           )}
         </nav>
+
 
         <div className="p-3 border-t border-sidebar-border">
           <div className="rounded-lg bg-sidebar-accent/60 p-3">
