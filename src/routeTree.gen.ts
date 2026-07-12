@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
+import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedJobOrdersRouteImport } from './routes/_authenticated/job-orders'
 import { Route as AuthenticatedItemTemplatesRouteImport } from './routes/_authenticated/item-templates'
 import { Route as AuthenticatedImportHistoryRouteImport } from './routes/_authenticated/import-history'
@@ -53,6 +54,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedJobOrdersRoute = AuthenticatedJobOrdersRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/import-history': typeof AuthenticatedImportHistoryRoute
   '/item-templates': typeof AuthenticatedItemTemplatesRoute
   '/job-orders': typeof AuthenticatedJobOrdersRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/import-history': typeof AuthenticatedImportHistoryRoute
   '/item-templates': typeof AuthenticatedItemTemplatesRoute
   '/job-orders': typeof AuthenticatedJobOrdersRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/_authenticated/import-history': typeof AuthenticatedImportHistoryRoute
   '/_authenticated/item-templates': typeof AuthenticatedItemTemplatesRoute
   '/_authenticated/job-orders': typeof AuthenticatedJobOrdersRoute
+  '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/import-history'
     | '/item-templates'
     | '/job-orders'
+    | '/library'
     | '/pricing'
     | '/settings'
     | '/users'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/import-history'
     | '/item-templates'
     | '/job-orders'
+    | '/library'
     | '/pricing'
     | '/settings'
     | '/users'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/_authenticated/import-history'
     | '/_authenticated/item-templates'
     | '/_authenticated/job-orders'
+    | '/_authenticated/library'
     | '/_authenticated/pricing'
     | '/_authenticated/settings'
     | '/_authenticated/users'
@@ -267,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof AuthenticatedPricingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/library': {
+      id: '/_authenticated/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AuthenticatedLibraryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/job-orders': {
@@ -350,6 +369,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportHistoryRoute: typeof AuthenticatedImportHistoryRoute
   AuthenticatedItemTemplatesRoute: typeof AuthenticatedItemTemplatesRoute
   AuthenticatedJobOrdersRoute: typeof AuthenticatedJobOrdersRoute
+  AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
@@ -366,6 +386,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportHistoryRoute: AuthenticatedImportHistoryRoute,
   AuthenticatedItemTemplatesRoute: AuthenticatedItemTemplatesRoute,
   AuthenticatedJobOrdersRoute: AuthenticatedJobOrdersRoute,
+  AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
