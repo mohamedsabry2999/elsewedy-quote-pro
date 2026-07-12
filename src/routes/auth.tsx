@@ -41,9 +41,10 @@ function AuthPage() {
         const u = data.session.user;
         const name = (u.user_metadata?.full_name as string) || (u.email ? u.email.split("@")[0] : null);
         setGreetingName(name);
+        navigate({ to: "/dashboard" });
       }
     });
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const interval = setInterval(() => {
