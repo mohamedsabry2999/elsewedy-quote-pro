@@ -269,6 +269,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     "view_job_orders", "create_job_order", "view_customer_in_job_order",
     "view_reports", "view_sales_reports", "export_reports_excel", "export_reports_pdf",
     "view_import_history", "export_import_errors",
+    "view_material_library", "manage_material_library",
+    "manual_product_entry", "manual_material_entry", "manual_weight_entry",
+    "manual_size_entry", "manual_finishing_entry", "save_manual_to_library",
   ],
   sales_rep: [
     "access_system", "view_dashboard", "use_global_search", "view_notifications",
@@ -277,6 +280,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     "export_own_pdf", "send_own_whatsapp", "send_own_email",
     "view_products", "view_pricing",
     "import_customers",
+    "view_material_library",
+    "manual_product_entry", "manual_material_entry", "manual_weight_entry",
+    "manual_size_entry", "manual_finishing_entry",
   ],
   finance: [
     "access_system", "view_dashboard", "view_notifications",
