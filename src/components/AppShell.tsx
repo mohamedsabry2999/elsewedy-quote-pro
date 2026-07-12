@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon, Layers, History } from "lucide-react";
+import { LayoutDashboard, Users, FileText, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon, Layers, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLE_LABELS } from "@/lib/roles";
