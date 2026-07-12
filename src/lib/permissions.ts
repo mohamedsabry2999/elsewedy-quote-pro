@@ -87,6 +87,15 @@ export type PermissionKey =
   | "edit_user_permissions"
   | "manage_settings"
   | "edit_brand_settings"
+  // Material library
+  | "view_material_library"
+  | "manage_material_library"
+  | "manual_material_entry"
+  | "manual_weight_entry"
+  | "manual_size_entry"
+  | "manual_finishing_entry"
+  | "manual_product_entry"
+  | "save_manual_to_library"
   | "upload_logo"
   // Legacy compatibility
   | "manage_customers"
@@ -228,6 +237,19 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "upload_logo", label: "رفع اللوجو" },
     ],
   },
+  {
+    title: "مكتبة الخامات والمنتجات",
+    items: [
+      { key: "view_material_library", label: "عرض مكتبة الخامات والمنتجات" },
+      { key: "manage_material_library", label: "إدارة مكتبة الخامات والمنتجات" },
+      { key: "manual_product_entry", label: "إدخال منتج مخصص داخل العرض" },
+      { key: "manual_material_entry", label: "إدخال خامة يدوية داخل العرض" },
+      { key: "manual_weight_entry", label: "إدخال وزن يدوي داخل العرض" },
+      { key: "manual_size_entry", label: "إدخال مقاس يدوي داخل العرض" },
+      { key: "manual_finishing_entry", label: "إدخال تشطيب يدوي داخل العرض" },
+      { key: "save_manual_to_library", label: "حفظ القيم اليدوية داخل المكتبة" },
+    ],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: PermissionKey[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
@@ -247,6 +269,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     "view_job_orders", "create_job_order", "view_customer_in_job_order",
     "view_reports", "view_sales_reports", "export_reports_excel", "export_reports_pdf",
     "view_import_history", "export_import_errors",
+    "view_material_library", "manage_material_library",
+    "manual_product_entry", "manual_material_entry", "manual_weight_entry",
+    "manual_size_entry", "manual_finishing_entry", "save_manual_to_library",
   ],
   sales_rep: [
     "access_system", "view_dashboard", "use_global_search", "view_notifications",
@@ -255,6 +280,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     "export_own_pdf", "send_own_whatsapp", "send_own_email",
     "view_products", "view_pricing",
     "import_customers",
+    "view_material_library",
+    "manual_product_entry", "manual_material_entry", "manual_weight_entry",
+    "manual_size_entry", "manual_finishing_entry",
   ],
   finance: [
     "access_system", "view_dashboard", "view_notifications",
