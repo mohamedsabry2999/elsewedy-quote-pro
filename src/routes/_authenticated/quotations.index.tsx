@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, FileText, Eye, ShieldAlert, Clock, X, Upload } from "lucide-react";
+import { Plus, Search, FileText, Eye, ShieldAlert, Clock, X, Upload, SlidersHorizontal } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { currency, dateAr } from "@/lib/format";
 import { SmartImportModal } from "@/components/SmartImportModal";
 import { useQueryClient } from "@tanstack/react-query";
@@ -114,16 +115,51 @@ function QuotationsPage() {
     setNeedsApproval(false); setExpiringSoon(false);
   };
 
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const FiltersBody = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+      <select className="h-11 rounded-md border bg-transparent px-3 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <option value="all">كل الحالات</option>
+        {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+      </select>
+      <select className="h-11 rounded-md border bg-transparent px-3 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="all">كل الفئات</option>
+        {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      </select>
+      <select className="h-11 rounded-md border bg-transparent px-3 text-sm" value={rep} onChange={(e) => setRep(e.target.value)}>
+        <option value="all">كل المندوبين</option>
+        {reps.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+      </select>
+      <div className="flex gap-2">
+        <Input type="number" placeholder="قيمة أدنى" className="h-11" value={minValue} onChange={(e) => setMinValue(e.target.value)} />
+        <Input type="number" placeholder="قيمة أعلى" className="h-11" value={maxValue} onChange={(e) => setMaxValue(e.target.value)} />
+      </div>
+      <div className="flex gap-2">
+        <Input type="date" className="h-11" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        <Input type="date" className="h-11" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+      </div>
+      <label className="flex items-center gap-2 text-sm rounded-md border h-11 px-3 cursor-pointer hover:bg-muted/50">
+        <input type="checkbox" checked={needsApproval} onChange={(e) => setNeedsApproval(e.target.checked)} />
+        <ShieldAlert className="size-4 text-warning-foreground" /> تحتاج اعتماد
+      </label>
+      <label className="flex items-center gap-2 text-sm rounded-md border h-11 px-3 cursor-pointer hover:bg-muted/50">
+        <input type="checkbox" checked={expiringSoon} onChange={(e) => setExpiringSoon(e.target.checked)} />
+        <Clock className="size-4 text-warning-foreground" /> قاربت الصلاحية
+      </label>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">عروض الأسعار</h1>
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold">عروض الأسعار</h1>
           <p className="text-sm text-muted-foreground">جميع عروض الأسعار المُعدّة في النظام</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="size-4 ms-1" /> رفع بيانات</Button>
-          <Button asChild className="gradient-primary"><Link to="/quotations/new"><Plus className="size-4 ms-1" /> عرض سعر جديد</Link></Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setImportOpen(true)} className="flex-1 sm:flex-initial"><Upload className="size-4 ms-1" /> رفع بيانات</Button>
+          <Button asChild className="gradient-primary flex-1 sm:flex-initial"><Link to="/quotations/new"><Plus className="size-4 ms-1" /> عرض سعر جديد</Link></Button>
         </div>
       </div>
 
@@ -132,87 +168,110 @@ function QuotationsPage() {
 
       <Card>
         <CardHeader className="space-y-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input placeholder="بحث برقم العرض، العميل، المندوب..." className="pe-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="بحث برقم العرض، العميل، المندوب..." className="pe-9 h-11" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <div className="text-sm text-muted-foreground me-auto">{filtered.length} من {quotations.length}</div>
+            {/* Mobile: filter button opens sheet */}
+            <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="md:hidden shrink-0 h-11" size="sm">
+                  <SlidersHorizontal className="size-4 ms-1" /> تصفية{activeFilters ? " •" : ""}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+                <SheetHeader><SheetTitle className="text-right">تصفية العروض</SheetTitle></SheetHeader>
+                <div className="mt-4"><FiltersBody /></div>
+                <div className="mt-4 flex gap-2">
+                  {activeFilters && <Button variant="outline" onClick={resetFilters} className="flex-1"><X className="size-4 ms-1" /> مسح</Button>}
+                  <Button onClick={() => setFilterOpen(false)} className="flex-1 gradient-primary">تطبيق</Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="text-sm text-muted-foreground ms-auto">{filtered.length} / {quotations.length}</div>
             {activeFilters && (
-              <Button size="sm" variant="ghost" onClick={resetFilters}><X className="size-4 ms-1" /> مسح الفلاتر</Button>
+              <Button size="sm" variant="ghost" onClick={resetFilters} className="hidden md:inline-flex"><X className="size-4 ms-1" /> مسح الفلاتر</Button>
             )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <select className="h-9 rounded-md border bg-transparent px-3 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="all">كل الحالات</option>
-              {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-            <select className="h-9 rounded-md border bg-transparent px-3 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="all">كل الفئات</option>
-              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <select className="h-9 rounded-md border bg-transparent px-3 text-sm" value={rep} onChange={(e) => setRep(e.target.value)}>
-              <option value="all">كل المندوبين</option>
-              {reps.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-            <div className="flex gap-2">
-              <Input type="number" placeholder="قيمة أدنى" className="h-9" value={minValue} onChange={(e) => setMinValue(e.target.value)} />
-              <Input type="number" placeholder="قيمة أعلى" className="h-9" value={maxValue} onChange={(e) => setMaxValue(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Input type="date" className="h-9" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              <Input type="date" className="h-9" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </div>
-            <label className="flex items-center gap-2 text-sm rounded-md border h-9 px-3 cursor-pointer hover:bg-muted/50">
-              <input type="checkbox" checked={needsApproval} onChange={(e) => setNeedsApproval(e.target.checked)} />
-              <ShieldAlert className="size-4 text-warning-foreground" /> تحتاج اعتماد
-            </label>
-            <label className="flex items-center gap-2 text-sm rounded-md border h-9 px-3 cursor-pointer hover:bg-muted/50">
-              <input type="checkbox" checked={expiringSoon} onChange={(e) => setExpiringSoon(e.target.checked)} />
-              <Clock className="size-4 text-warning-foreground" /> قاربت الصلاحية
-            </label>
-          </div>
+          {/* Desktop inline filters */}
+          <div className="hidden md:block"><FiltersBody /></div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>رقم العرض</TableHead>
-                <TableHead>العميل</TableHead>
-                <TableHead>الفئة</TableHead>
-                <TableHead>المندوب</TableHead>
-                <TableHead>القيمة النهائية</TableHead>
-                <TableHead>الحالة</TableHead>
-                <TableHead>التاريخ</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-12">
-                  <FileText className="size-10 mx-auto text-muted-foreground/50" />
-                  <div className="mt-3 text-muted-foreground">
-                    {quotations.length === 0 ? "لم يتم إنشاء أي عرض سعر بعد" : "لا توجد نتائج مطابقة للفلاتر"}
-                  </div>
-                  {quotations.length === 0 && <Button asChild className="mt-4"><Link to="/quotations/new">إنشاء أول عرض سعر</Link></Button>}
-                </TableCell></TableRow>
-              ) : filtered.map((q: any) => (
-                <TableRow key={q.id}>
-                  <TableCell className="font-mono text-sm font-semibold">{q.quotation_number}</TableCell>
-                  <TableCell>{q.customers?.company_name ?? "—"}</TableCell>
-                  <TableCell><Badge variant="outline">{CATEGORY_LABELS[q.product_category] ?? q.product_category ?? "—"}</Badge></TableCell>
-                  <TableCell className="text-sm">{q.profiles?.full_name ?? "—"}</TableCell>
-                  <TableCell className="font-semibold text-primary">{currency(q.final_price)}</TableCell>
-                  <TableCell><Badge variant={STATUS_META[q.status]?.variant ?? "outline"}>{STATUS_META[q.status]?.label ?? q.status}</Badge></TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{dateAr(q.created_at)}</TableCell>
-                  <TableCell><Button size="sm" variant="outline" asChild><Link to="/quotations/$id" params={{ id: q.id }}><Eye className="size-4" /></Link></Button></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {filtered.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="size-10 mx-auto text-muted-foreground/50" />
+              <div className="mt-3 text-muted-foreground">
+                {quotations.length === 0 ? "لم يتم إنشاء أي عرض سعر بعد" : "لا توجد نتائج مطابقة للفلاتر"}
+              </div>
+              {quotations.length === 0 && <Button asChild className="mt-4"><Link to="/quotations/new">إنشاء أول عرض سعر</Link></Button>}
+            </div>
+          ) : (
+            <>
+              {/* Mobile: card list */}
+              <ul className="md:hidden space-y-3">
+                {filtered.map((q: any) => (
+                  <li key={q.id}>
+                    <Link to="/quotations/$id" params={{ id: q.id }} className="block rounded-lg border bg-card p-4 hover:border-primary/50 transition shadow-card">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-sm font-bold text-primary truncate">{q.quotation_number}</div>
+                          <div className="mt-0.5 font-medium truncate">{q.customers?.company_name ?? "—"}</div>
+                        </div>
+                        <Badge variant={STATUS_META[q.status]?.variant ?? "outline"} className="shrink-0">
+                          {STATUS_META[q.status]?.label ?? q.status}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-xs">{CATEGORY_LABELS[q.product_category] ?? q.product_category ?? "—"}</Badge>
+                        <span className="text-base font-bold text-primary">{currency(q.final_price)}</span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="truncate">{q.profiles?.full_name ?? "—"}</span>
+                        <span className="shrink-0">{dateAr(q.created_at)}</span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>رقم العرض</TableHead>
+                      <TableHead>العميل</TableHead>
+                      <TableHead>الفئة</TableHead>
+                      <TableHead>المندوب</TableHead>
+                      <TableHead>القيمة النهائية</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((q: any) => (
+                      <TableRow key={q.id}>
+                        <TableCell className="font-mono text-sm font-semibold">{q.quotation_number}</TableCell>
+                        <TableCell>{q.customers?.company_name ?? "—"}</TableCell>
+                        <TableCell><Badge variant="outline">{CATEGORY_LABELS[q.product_category] ?? q.product_category ?? "—"}</Badge></TableCell>
+                        <TableCell className="text-sm">{q.profiles?.full_name ?? "—"}</TableCell>
+                        <TableCell className="font-semibold text-primary">{currency(q.final_price)}</TableCell>
+                        <TableCell><Badge variant={STATUS_META[q.status]?.variant ?? "outline"}>{STATUS_META[q.status]?.label ?? q.status}</Badge></TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{dateAr(q.created_at)}</TableCell>
+                        <TableCell><Button size="sm" variant="outline" asChild><Link to="/quotations/$id" params={{ id: q.id }}><Eye className="size-4" /></Link></Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
