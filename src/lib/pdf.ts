@@ -72,26 +72,34 @@ function ensureArabicFont(): Promise<void> {
   if (arabicFontPromise) return arabicFontPromise;
   arabicFontPromise = (async () => {
     if (typeof document === "undefined") return;
-    if (document.getElementById("__pdf-cairo-font")) return;
-    const link = document.createElement("link");
-    link.id = "__pdf-cairo-font";
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap";
-    document.head.appendChild(link);
-    // Wait until the font actually loads.
+    if (!document.getElementById("__pdf-cairo-font")) {
+      const link = document.createElement("link");
+      link.id = "__pdf-cairo-font";
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap";
+      document.head.appendChild(link);
+    }
     try {
-      // @ts-ignore
-      if ((document as any).fonts?.load) {
+      const f = (document as any).fonts;
+      if (f?.load) {
         await Promise.all([
-          (document as any).fonts.load("400 12px Cairo"),
-          (document as any).fonts.load("700 12px Cairo"),
-          (document as any).fonts.load("800 14px Cairo"),
+          f.load("400 12px Cairo"),
+          f.load("500 12px Cairo"),
+          f.load("600 12px Cairo"),
+          f.load("700 12px Cairo"),
+          f.load("800 14px Cairo"),
+          // Preload a sample of Arabic glyphs so the browser fetches the
+          // Arabic subset before html2canvas snapshots the DOM.
+          f.load("700 12px Cairo", "بند رقم عرض السعر بيانات العميل تفاصيل"),
+          f.load("800 14px Cairo", "بند رقم عرض السعر"),
         ]);
-        // @ts-ignore
-        await (document as any).fonts.ready;
+        await f.ready;
       } else {
-        await new Promise((r) => setTimeout(r, 800));
+        await new Promise((r) => setTimeout(r, 1000));
       }
+      // Extra safety tick — some browsers finish shaping metrics slightly
+      // after fonts.ready resolves.
+      await new Promise((r) => setTimeout(r, 120));
     } catch { /* ignore */ }
   })();
   return arabicFontPromise;
