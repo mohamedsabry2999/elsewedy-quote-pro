@@ -237,6 +237,19 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "upload_logo", label: "رفع اللوجو" },
     ],
   },
+  {
+    title: "مكتبة الخامات والمنتجات",
+    items: [
+      { key: "view_material_library", label: "عرض مكتبة الخامات والمنتجات" },
+      { key: "manage_material_library", label: "إدارة مكتبة الخامات والمنتجات" },
+      { key: "manual_product_entry", label: "إدخال منتج مخصص داخل العرض" },
+      { key: "manual_material_entry", label: "إدخال خامة يدوية داخل العرض" },
+      { key: "manual_weight_entry", label: "إدخال وزن يدوي داخل العرض" },
+      { key: "manual_size_entry", label: "إدخال مقاس يدوي داخل العرض" },
+      { key: "manual_finishing_entry", label: "إدخال تشطيب يدوي داخل العرض" },
+      { key: "save_manual_to_library", label: "حفظ القيم اليدوية داخل المكتبة" },
+    ],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: PermissionKey[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
