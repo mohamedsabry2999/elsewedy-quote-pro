@@ -132,7 +132,7 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
     const rows = Object.entries(cb).filter(([, v]) => typeof v === "number" && v !== 0)
       .map(([k, v]) => `<tr><td>${COST_LABELS[k] ?? k}</td><td class="money">${money(v as number)}</td></tr>`).join("");
     if (rows || it.unit_cost) {
-      internal = `<div class="internal">
+      internal = `<div class="internal" data-pdf-subsection="internal">
         <div class="it-t">تحليل التكلفة الداخلية</div>
         <table>${rows}${it.unit_cost ? `<tr><td>تكلفة الوحدة</td><td class="money">${money(it.unit_cost)}</td></tr>` : ""}</table>
         ${it.profit_margin_pct ? `<div class="sm">هامش الربح: <span class="num">${pct(it.profit_margin_pct)}</span></div>` : ""}
@@ -142,17 +142,20 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
   }
 
   const num = it.item_number ?? index + 1;
-  const custNotes = it.customer_notes ? `<div class="item-notes"><b>ملاحظة:</b> ${it.customer_notes}</div>` : "";
+  const custNotes = it.customer_notes ? `<div class="item-notes" data-pdf-subsection="notes"><b>ملاحظة:</b> ${it.customer_notes}</div>` : "";
 
+  // data-pdf-item-num used to emit "تابع بند X" continuation headers when this
+  // block spans pages. Sub-sections carry data-pdf-subsection so the slicer can
+  // fall back to internal boundaries when a whole item is taller than one page.
   return `
-  <div class="item" data-pdf-section="item">
-    <div class="ihead">
+  <div class="item" data-pdf-section="item" data-pdf-item-num="${num}">
+    <div class="ihead" data-pdf-subsection="head">
       <div class="it"><span class="ino">بند ${num}</span><span>${it.title ?? "—"}</span></div>
       <div class="iqty"><span class="num">${qty(it.quantity)}</span> ${it.unit ?? "قطعة"}</div>
     </div>
-    ${it.description ? `<div class="idesc">${it.description}</div>` : ""}
-    ${specsInner ? `<div class="specs">${specsInner}</div>` : ""}
-    <table class="price-tbl"><tr>
+    ${it.description ? `<div class="idesc" data-pdf-subsection="desc">${it.description}</div>` : ""}
+    ${specsInner ? `<div class="specs" data-pdf-subsection="specs">${specsInner}</div>` : ""}
+    <table class="price-tbl" data-pdf-subsection="price"><tr>
       <td><div class="lbl">الكمية</div><div class="val"><span class="num">${qty(it.quantity)}</span></div></td>
       <td><div class="lbl">سعر الوحدة</div><div class="val money">${money(it.unit_price)}</div></td>
       <td style="text-align:left"><div class="lbl">الإجمالي</div><div class="val grand money">${money(it.total_price)}</div></td>
