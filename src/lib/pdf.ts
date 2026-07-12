@@ -158,7 +158,7 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
   return `
   <div class="item" data-pdf-section="item" data-pdf-item-num="${num}">
     <div class="ihead" data-pdf-subsection="head">
-      <div class="it"><span class="ino">بند ${num}</span><span>${it.title ?? "—"}</span></div>
+      <div class="it"><span class="ino">بند <span class="n">${num}</span></span><span class="t">${it.title ?? "—"}</span></div>
       <div class="iqty"><span class="num">${qty(it.quantity)}</span> ${it.unit ?? "قطعة"}</div>
     </div>
     ${it.description ? `<div class="idesc" data-pdf-subsection="desc">${it.description}</div>` : ""}
