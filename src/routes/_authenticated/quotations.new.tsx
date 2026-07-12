@@ -496,7 +496,32 @@ function ItemCard({
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent>
-          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <CardContent className="p-4 space-y-3">
+            <SmartProductPicker onApply={(v: PickedProduct) => {
+              const patch: any = {};
+              if (v.name) patch.title = v.name;
+              if (v.category) {
+                const catKey = CATEGORIES.find((c) => c.label === v.category || c.key === v.category)?.key;
+                if (catKey) patch.category = catKey;
+              }
+              if (v.description) patch.description = v.description;
+              if (v.size) patch.size = v.size;
+              if (v.material) patch.material = v.material;
+              if (v.gsm) patch.gsm = v.gsm;
+              if (v.printing_method) {
+                const method = PRINTING_METHODS.find((m) => m === v.printing_method || m.includes(v.printing_method!)) ?? v.printing_method;
+                patch.printing_method = method;
+              }
+              if (v.finishing_options?.length) {
+                const existing = new Set(item.finishing_options);
+                v.finishing_options.forEach((f) => existing.add(f));
+                patch.finishing_options = Array.from(existing);
+              }
+              if (v.customer_notes) patch.customer_notes = v.customer_notes;
+              if (v.internal_notes) patch.internal_notes = v.internal_notes;
+              onChange(patch);
+            }} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Field label="فئة المنتج">
               <Select value={item.category} onValueChange={(v) => onChange({ category: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
