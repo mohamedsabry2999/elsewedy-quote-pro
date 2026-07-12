@@ -1,5 +1,6 @@
 // PDF generation for Elsewedy quotations — multi-item, brand-aware, smart pagination.
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import QRCode from "qrcode";
 import { currency, dateAr, number, percent } from "./format";
 import type { BrandSettings } from "./brand";
@@ -257,24 +258,74 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     </div>
   `;
 
+  // Isolate from app CSS (Tailwind v4 uses oklch which html2canvas cannot parse).
+  container.style.position = "fixed";
+  container.style.left = "-10000px";
+  container.style.top = "0";
+  container.style.zIndex = "-1";
+  container.style.colorScheme = "light";
   document.body.appendChild(container);
-  const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
-  await pdf.html(container, {
-    callback: () => {},
-    x: 20, y: 20,
-    width: 555, windowWidth: 800,
-    autoPaging: "text",
-    margin: [30, 20, 30, 20],
+
+  // Rasterize the HTML into a canvas — this preserves Arabic shaping via the browser's
+  // native text renderer, which jsPDF's built-in fonts cannot do.
+  const canvas = await html2canvas(container, {
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    scale: 2,
+    logging: false,
+    windowWidth: 800,
+    onclone: (clonedDoc: Document, clonedEl: HTMLElement) => {
+      // Strip app stylesheets so Tailwind v4 oklch variables never reach html2canvas.
+      clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((el) => el.parentNode?.removeChild(el));
+      clonedDoc.querySelectorAll("style").forEach((el) => {
+        if (!clonedEl.contains(el)) el.parentNode?.removeChild(el);
+      });
+      const reset = clonedDoc.createElement("style");
+      reset.textContent = `:root,html,body{color-scheme:light !important;background:#fff !important;color:#1a1a1a !important;}`;
+      clonedDoc.head.appendChild(reset);
+    },
   });
   document.body.removeChild(container);
 
-  // Page numbers + brand-color footer bar
+  // A4 in pt: 595.28 x 841.89. Slice the tall canvas across multiple PDF pages.
+  const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - margin * 2;
+  const contentHeight = pageHeight - margin * 2 - 20; // reserve room for footer number
+
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+  const pxPerPt = canvasWidth / contentWidth;
+  const pageHeightPx = Math.floor(contentHeight * pxPerPt);
+
+  let renderedPx = 0;
+  let pageIndex = 0;
+  while (renderedPx < canvasHeight) {
+    const sliceHeightPx = Math.min(pageHeightPx, canvasHeight - renderedPx);
+    const slice = document.createElement("canvas");
+    slice.width = canvasWidth;
+    slice.height = sliceHeightPx;
+    const ctx = slice.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, slice.width, slice.height);
+    ctx.drawImage(canvas, 0, renderedPx, canvasWidth, sliceHeightPx, 0, 0, canvasWidth, sliceHeightPx);
+    const imgData = slice.toDataURL("image/jpeg", 0.92);
+    if (pageIndex > 0) pdf.addPage();
+    const drawHeight = sliceHeightPx / pxPerPt;
+    pdf.addImage(imgData, "JPEG", margin, margin, contentWidth, drawHeight);
+    renderedPx += sliceHeightPx;
+    pageIndex += 1;
+  }
+
+  // Page numbers — use latin digits since jsPDF core fonts don't shape Arabic.
   const pageCount = pdf.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     pdf.setPage(i);
     pdf.setFontSize(9);
     pdf.setTextColor(150);
-    pdf.text(`صفحة ${i} من ${pageCount}`, pdf.internal.pageSize.getWidth() / 2, pdf.internal.pageSize.getHeight() - 14, { align: "center" });
+    pdf.text(`Page ${i} / ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: "center" });
   }
 
   return pdf.output("blob");
