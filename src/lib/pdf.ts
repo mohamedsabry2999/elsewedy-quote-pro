@@ -158,7 +158,8 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
   return `
   <div class="item" data-pdf-section="item" data-pdf-item-num="${num}">
     <div class="ihead" data-pdf-subsection="head">
-      <div class="it"><span class="ino">بند <span class="n">${num}</span></span><span class="t">${it.title ?? "—"}</span></div>
+      <span class="ino">بند<span class="n">${num}</span></span>
+      <div class="it"><span class="t">${it.title ?? "—"}</span></div>
       <div class="iqty"><span class="num">${qty(it.quantity)}</span> ${it.unit ?? "قطعة"}</div>
     </div>
     ${it.description ? `<div class="idesc" data-pdf-subsection="desc">${it.description}</div>` : ""}
@@ -166,7 +167,7 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
     <table class="price-tbl" data-pdf-subsection="price"><tr>
       <td><div class="lbl">الكمية</div><div class="val"><span class="num">${qty(it.quantity)}</span></div></td>
       <td><div class="lbl">سعر الوحدة</div><div class="val money">${money(it.unit_price)}</div></td>
-      <td style="text-align:left"><div class="lbl">الإجمالي</div><div class="val grand money">${money(it.total_price)}</div></td>
+      <td><div class="lbl">الإجمالي</div><div class="val grand money">${money(it.total_price)}</div></td>
     </tr></table>
     ${custNotes}
     ${internal}
