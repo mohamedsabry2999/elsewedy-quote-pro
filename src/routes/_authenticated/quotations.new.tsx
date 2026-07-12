@@ -19,6 +19,7 @@ import { canSeeCosts } from "@/lib/roles";
 import { useBrand } from "@/lib/brand";
 import { ruleMap, calcDigital, calcOffset, calcPackaging, calcLabels, calcFinishingOnly, type PricingBreakdown } from "@/lib/pricing";
 import { currency, number } from "@/lib/format";
+import { SmartProductPicker, type PickedProduct } from "@/components/library/SmartProductPicker";
 
 const searchSchema = z.object({ customer: z.string().optional() });
 
