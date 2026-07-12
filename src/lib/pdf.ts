@@ -157,12 +157,17 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
   container.lang = "ar";
   container.style.width = "780px";
   container.style.padding = "28px 32px 24px";
-  container.style.fontFamily = "'Cairo','Tajawal','Segoe UI',Arial,sans-serif";
+  container.style.fontFamily = "'Cairo','Noto Kufi Arabic','Tajawal','Segoe UI',Arial,sans-serif";
   container.style.color = "#1f2937";
   container.style.background = "#ffffff";
   container.style.fontSize = "12px";
   container.style.lineHeight = "1.55";
   container.style.direction = "rtl";
+
+  // Ensure Cairo is loaded (idempotent) so the PDF renders consistently on
+  // machines without a system Arabic UI font (headless browsers, Windows).
+  await ensureArabicFont();
+
 
   container.innerHTML = `
     <style>
