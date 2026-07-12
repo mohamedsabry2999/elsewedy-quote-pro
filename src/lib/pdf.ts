@@ -225,6 +225,10 @@ function mountStage(styles: string): Stage {
 
 async function renderSection(stage: Stage, html: string, opts?: { className?: string }): Promise<{ imgData: string; heightPt: number }> {
   const wrapper = document.createElement("div");
+  wrapper.setAttribute("dir", "rtl");
+  wrapper.lang = "ar";
+  wrapper.style.direction = "rtl";
+  wrapper.style.fontFamily = "'Cairo','Tajawal','Segoe UI',Arial,sans-serif";
   if (opts?.className) wrapper.className = opts.className;
   wrapper.innerHTML = html;
   // Empty previous, keep only this section
