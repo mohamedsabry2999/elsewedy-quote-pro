@@ -76,13 +76,32 @@ function AuthPage() {
           <img src={brand.logo_url} alt={brand.company_name_en} className="h-16 w-auto object-contain" />
         </div>
         <div className="relative">
-          <h1 className="text-4xl font-bold leading-tight text-balance">نظام عروض الأسعار الذكي</h1>
-          <p className="mt-4 text-lg opacity-95 max-w-md">
-            منصة احترافية لإعداد عروض أسعار الطباعة الديجيتال والأوفست والتغليف والملصقات — بدقة وسرعة وتحكم كامل.
+          {greetingName && (
+            <div className="mb-3 text-sm opacity-90">
+              مرحبًا {greetingName}، جاهز نجهز عرض سعر يليق باسم السويدي؟
+            </div>
+          )}
+          <h1 className="text-4xl font-bold leading-tight text-balance">احترافية السويدي في كل عرض سعر</h1>
+          <p className="mt-4 text-lg opacity-95 max-w-md leading-relaxed">
+            منصة داخلية تساعد فريق مدحت السويدي للطباعة على إعداد عروض أسعار دقيقة ومنظمة للطباعة الديجيتال والأوفست والتغليف والملصقات بشكل يليق بجودة الشركة وثقة العملاء.
           </p>
-          <div className="mt-8 grid grid-cols-2 gap-3 max-w-md text-sm">
-            {["HP Indigo 12K", "أوفست 50×70", "تغليف وفويل ستامبينج", "PDF احترافي RTL"].map((f) => (
-              <div key={f} className="rounded-lg bg-white/15 backdrop-blur px-3 py-2 border border-white/20">{f}</div>
+
+          <div className="mt-6 max-w-md">
+            <div className="text-[11px] uppercase tracking-wider opacity-75 mb-2">رسالة اليوم</div>
+            <div className="rounded-xl bg-white/12 backdrop-blur border border-white/20 px-4 py-3 flex items-start gap-3 min-h-[64px]">
+              <Sparkles className="size-4 mt-1 shrink-0 opacity-90" />
+              <p
+                key={msgIndex}
+                className={`text-sm font-medium leading-relaxed transition-opacity duration-500 ${msgVisible ? "opacity-100" : "opacity-0"}`}
+              >
+                {TEAM_MESSAGES[msgIndex]}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-2 max-w-md text-sm">
+            {["للديجيتال والأوفست", "تغليف وملصقات", "PDF احترافي", "لفريق السويدي"].map((f) => (
+              <span key={f} className="rounded-full bg-white/15 backdrop-blur px-3 py-1.5 border border-white/25">{f}</span>
             ))}
           </div>
         </div>
