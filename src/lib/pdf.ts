@@ -66,6 +66,37 @@ const tr = (v: any): string => {
 };
 const trList = (arr: any): string => Array.isArray(arr) ? arr.map(tr).join("، ") : "";
 
+/* ---------- font loader ---------- */
+let arabicFontPromise: Promise<void> | null = null;
+function ensureArabicFont(): Promise<void> {
+  if (arabicFontPromise) return arabicFontPromise;
+  arabicFontPromise = (async () => {
+    if (typeof document === "undefined") return;
+    if (document.getElementById("__pdf-cairo-font")) return;
+    const link = document.createElement("link");
+    link.id = "__pdf-cairo-font";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap";
+    document.head.appendChild(link);
+    // Wait until the font actually loads.
+    try {
+      // @ts-ignore
+      if ((document as any).fonts?.load) {
+        await Promise.all([
+          (document as any).fonts.load("400 12px Cairo"),
+          (document as any).fonts.load("700 12px Cairo"),
+          (document as any).fonts.load("800 14px Cairo"),
+        ]);
+        // @ts-ignore
+        await (document as any).fonts.ready;
+      } else {
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    } catch { /* ignore */ }
+  })();
+  return arabicFontPromise;
+}
+
 /* ---------- HTML builders ---------- */
 
 const COST_LABELS: Record<string, string> = {
