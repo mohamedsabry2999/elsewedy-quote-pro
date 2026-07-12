@@ -141,7 +141,8 @@
 
 @layer base {
   * { border-color: var(--color-border); }
-  html { direction: rtl; }
+  html, body { overflow-x: hidden; max-width: 100vw; }
+  html { direction: rtl; -webkit-text-size-adjust: 100%; }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -149,7 +150,21 @@
     font-feature-settings: "kern";
   }
   h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.01em; font-weight: 700; }
+
+  /* Mobile hardening: wrap long words, keep tables scrollable inside their container */
+  @media (max-width: 1023px) {
+    h1 { font-size: 1.35rem; line-height: 1.3; }
+    h2 { font-size: 1.15rem; line-height: 1.3; }
+    p, span, div, td, th, li, label { word-break: break-word; overflow-wrap: anywhere; }
+    /* Any raw <table> in the app becomes horizontally scrollable on mobile without breaking the page */
+    table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* Force min tap target for interactive controls */
+    button, [role="button"], a.btn, input[type="checkbox"], input[type="radio"] { min-height: 36px; }
+    /* Prevent iOS zoom on focus */
+    input, select, textarea { font-size: 16px; }
+  }
 }
+
 
 @utility text-balance { text-wrap: balance; }
 @utility gradient-primary {
