@@ -624,6 +624,7 @@ function ItemCard({
             {showCosts && (
               <div className="md:col-span-3 space-y-1.5"><Label className="text-xs">ملاحظات داخلية</Label><Textarea rows={2} value={item.internal_notes} onChange={(e) => onChange({ internal_notes: e.target.value })} /></div>
             )}
+            </div>
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
