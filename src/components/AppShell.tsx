@@ -1,35 +1,50 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon, Layers, History } from "lucide-react";
+import { LayoutDashboard, Users, FileText, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon, Layers, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
+import { ROLE_LABELS } from "@/lib/roles";
+import type { PermissionKey } from "@/lib/permissions";
 import { useBrand } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-const OWNER_EMAIL = "mohamedsabryabdelfatah@gmail.com";
+type NavItem = { to: string; icon: typeof LayoutDashboard; label: string; perm?: PermissionKey };
 
-const nav = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم" },
-  { to: "/quotations", icon: FileText, label: "عروض الأسعار" },
-  { to: "/quotations/new", icon: Plus, label: "إنشاء عرض سعر" },
-  { to: "/job-orders", icon: Factory, label: "أوامر التشغيل" },
-  { to: "/customers", icon: Users, label: "العملاء" },
-] as const;
+const mainNav: NavItem[] = [
+  { to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم", perm: "view_dashboard" },
+  { to: "/quotations", icon: FileText, label: "عروض الأسعار", perm: "view_own_quotations" },
+  { to: "/quotations/new", icon: Plus, label: "إنشاء عرض سعر", perm: "create_quotation" },
+  { to: "/job-orders", icon: Factory, label: "أوامر التشغيل", perm: "view_job_orders" },
+  { to: "/customers", icon: Users, label: "العملاء", perm: "view_customers" },
+];
+
+const adminNav: NavItem[] = [
+  { to: "/users", icon: Shield, label: "المستخدمون والصلاحيات", perm: "manage_users" },
+  { to: "/pricing", icon: DollarSign, label: "قواعد التسعير", perm: "view_pricing" },
+  { to: "/finishing", icon: Scissors, label: "خدمات التشطيبات", perm: "view_pricing" },
+  { to: "/item-templates", icon: Layers, label: "قوالب البنود", perm: "manage_item_templates" },
+  { to: "/import-history", icon: History, label: "سجل رفع البيانات", perm: "view_import_history" },
+  { to: "/import", icon: FileSpreadsheet, label: "استيراد Excel (قديم)", perm: "import_customers" },
+  { to: "/settings", icon: ImageIcon, label: "إعدادات الهوية والـ PDF", perm: "manage_settings" },
+];
 
 export function AppShell() {
   const { pathname } = useRouterState({ select: (s) => s.location });
   const auth = useAuth();
   const brand = useBrand();
   const navigate = useNavigate();
-  const isAdmin = canManagePricing(auth.roles) || auth.email?.toLowerCase() === OWNER_EMAIL;
+
+  const canSee = (perm?: PermissionKey) => !perm || auth.can(perm);
+  const visibleMain = mainNav.filter((n) => canSee(n.perm));
+  const visibleAdmin = adminNav.filter((n) => canSee(n.perm));
 
   const signOut = async () => {
     await supabase.auth.signOut();
     toast.success("تم تسجيل الخروج");
     navigate({ to: "/auth" });
   };
+
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -47,48 +62,35 @@ export function AppShell() {
         </div>
 
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-          {nav.map((n) => {
+          {visibleMain.map((n) => {
             const active = n.to === "/quotations/new"
               ? pathname === "/quotations/new"
               : n.to === "/quotations"
                 ? pathname === "/quotations" || (pathname.startsWith("/quotations/") && pathname !== "/quotations/new")
                 : pathname.startsWith(n.to);
             return (
-              <Link key={n.to} to={n.to}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-                  active ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/60"
-                }`}>
+              <Link key={n.to} to={n.to} className={navItemCls(active)}>
                 <n.icon className="size-4" /> {n.label}
               </Link>
             );
           })}
-          {isAdmin && (
+          {visibleAdmin.length > 0 && (
             <>
               <div className="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider opacity-60">الإدارة</div>
-              <Link to="/users" className={navItemCls(pathname.startsWith("/users"))}>
-                <Shield className="size-4" /> المستخدمون والصلاحيات
-              </Link>
-              <Link to="/pricing" className={navItemCls(pathname.startsWith("/pricing"))}>
-                <DollarSign className="size-4" /> قواعد التسعير
-              </Link>
-              <Link to="/finishing" className={navItemCls(pathname.startsWith("/finishing"))}>
-                <Scissors className="size-4" /> خدمات التشطيبات
-              </Link>
-              <Link to="/item-templates" className={navItemCls(pathname.startsWith("/item-templates"))}>
-                <Layers className="size-4" /> قوالب البنود
-              </Link>
-              <Link to="/import-history" className={navItemCls(pathname.startsWith("/import-history"))}>
-                <History className="size-4" /> سجل رفع البيانات
-              </Link>
-              <Link to="/import" className={navItemCls(pathname.startsWith("/import") && !pathname.startsWith("/import-history"))}>
-                <FileSpreadsheet className="size-4" /> استيراد Excel (قديم)
-              </Link>
-              <Link to="/settings" className={navItemCls(pathname.startsWith("/settings"))}>
-                <ImageIcon className="size-4" /> إعدادات الهوية والـ PDF
-              </Link>
+              {visibleAdmin.map((n) => {
+                const active = n.to === "/import"
+                  ? pathname.startsWith("/import") && !pathname.startsWith("/import-history")
+                  : pathname.startsWith(n.to);
+                return (
+                  <Link key={n.to} to={n.to} className={navItemCls(active)}>
+                    <n.icon className="size-4" /> {n.label}
+                  </Link>
+                );
+              })}
             </>
           )}
         </nav>
+
 
         <div className="p-3 border-t border-sidebar-border">
           <div className="rounded-lg bg-sidebar-accent/60 p-3">

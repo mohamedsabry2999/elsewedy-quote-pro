@@ -594,6 +594,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          internal_notes: string | null
           is_suspended: boolean
           last_login_at: string | null
           phone: string | null
@@ -605,6 +606,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          internal_notes?: string | null
           is_suspended?: boolean
           last_login_at?: string | null
           phone?: string | null
@@ -616,6 +618,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          internal_notes?: string | null
           is_suspended?: boolean
           last_login_at?: string | null
           phone?: string | null
@@ -857,6 +860,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_activity_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_permissions: {
         Row: {
