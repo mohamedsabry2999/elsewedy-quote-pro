@@ -233,7 +233,3 @@ export function AddUserSheet({ open, onOpenChange, onCreated }: Props) {
   );
 }
 
-// Handle typescript unused import guard for Textarea when its file uses forwardRef.
-// Provide fallback if ui/textarea is not present:
-export {} satisfies Record<string, never> as unknown as Record<string, never>;
-type _PK = PermissionKey; export type __ = _PK;
