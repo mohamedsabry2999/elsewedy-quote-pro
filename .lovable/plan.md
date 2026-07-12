@@ -1,70 +1,77 @@
-# خطة الإصلاح الشامل لنظام Elsewedy Smart Quotation
+# خطة تطوير إدارة المستخدمين والصلاحيات
 
-سأنفذ الإصلاح على **4 جولات** متتالية بعد موافقتك، بحيث كل جولة تنتهي بميزة كاملة قابلة للاختبار بدون كسر ما هو شغال. هذه الجولة الأولى فقط تُنفَّذ بعد الموافقة، ثم أكمل الباقي جولة جولة.
+الصفحة الحالية بها Drawer لتعديل الأدوار والصلاحيات، لكن ينقصها إنشاء مستخدم جديد آمن، توسّع في قائمة الصلاحيات، تفعيل هذه الصلاحيات فعليًا في الواجهات والـ Sidebar، وإغلاق التسجيل العام. الخطة تُنفّذ الكل دفعة واحدة.
 
----
+## ١. قاعدة البيانات (migration واحدة)
 
-## الجولة 1 — Backend + Workflow + Validations (الأساس)
+- إضافة أعمدة على `profiles`: `department` (text)، `internal_notes` (text)، `phone` موجود مسبقًا.
+- إنشاء جدول `user_activity_logs` (user_id, action, details, created_at) مع RLS: يقرأه المالك/الأدمن، وتكتب فيه الدوال فقط.
+- إضافة كل مفاتيح الصلاحيات الجديدة (لا يوجد enum ثابت — المفاتيح نصية، سنستخدم فقط ثابتة في الفرونت).
+- سياسة RLS جديدة على `profiles` تسمح لمن يملك `manage_users` بقراءة الكل.
+- سياسة RLS جديدة على `user_permissions` تسمح لمن يملك `manage_users` بالكتابة.
 
-**Migration واحدة تضيف:**
-- `job_orders` (رقم أمر التشغيل تلقائي `JO-YYYY-#####`، quotation_id, production_status، due_date، notes، assigned_to)
-- أعمدة على `quotations`: `tax_enabled` (bool default true)، `tax_pct` (default 14)، `tax_amount`، `payment_terms`، `delivery_days`، `validity_days`، `internal_notes`
-- أعمدة على `pricing_rules` seed: `min_margin_pct` (10)، `max_discount_pct` (15)، `high_value_threshold` (50000)
-- RLS + GRANT كاملة + trigger للـ job order number
-- دوال DB: `has_role`، `can_view_quotation` للتحقق من الصلاحيات
+## ٢. Server functions للعمليات الحساسة
 
-**كود:**
-- إضافة VAT للـ pricing engines الخمسة (digital/offset/packaging/labels/finishing_only)
-- Approval routing حقيقي: خصم > حد، هامش < حد، قيمة > threshold → `pending_approval` تلقائي
-- Validations قوية: zod schemas في الويزارد (كمية>0، عميل مطلوب، أسعار غير سلبية، هاتف صحيح)
-- Confirmation dialogs (AlertDialog) لكل: حذف، اعتماد، رفض، تحويل لأمر تشغيل، إرسال
-- منع الحذف إلا لـ admin + منع تصدير PDF لعرض ناقص البيانات
-- تحويل الحالات كاملة: Draft → Pending Approval → Approved → Sent → Accepted/Rejected → Converted
-- زر "تحويل لأمر تشغيل" ينشئ job_order فعلي ويحدث الحالة
+يُنشأ `src/lib/admin-users.functions.ts` بمعرِّف `requireSupabaseAuth` + فحص `has_role('admin')/is_owner`، وتستخدم `supabaseAdmin` داخل الـ handler فقط.
+- `createUserFn` — ينشئ Auth User، Profile، User Role، وصلاحيات (الافتراضية أو المحددة). خيار "إرسال دعوة" باستخدام `inviteUserByEmail`.
+- `resetPasswordFn` — يرسل رابط إعادة تعيين للمستخدم.
+- `deleteUserFn` — يحذف المستخدم (مع منع المالك).
+- `logActivityFn` — يسجّل حدث في `user_activity_logs`.
 
-## الجولة 2 — PDF الاحترافي
+## ٣. توسيع قائمة الصلاحيات
 
-- إعادة كتابة `src/lib/pdf.ts` باستخدام `pdfmake` (يدعم RTL أعمق من jsPDF-autotable) أو تحسين jsPDF-autotable مع:
-  - تكرار رأس الجدول تلقائيًا عبر الصفحات (`showHead: 'everyPage'`)
-  - Page break ذكي (`rowPageBreak: 'avoid'` للبنود القصيرة)
-  - Header + Footer ثابتين مع رقم الصفحة `X من Y`
-  - Font Cairo مدمج (base64) لضمان عربي سليم
-  - Watermark للحالات Draft/Rejected
-  - نسختين: عميل (بدون تكلفة/ربح) + داخلي (كامل مع ملاحظات إدارية)
-  - QR code لرقم العرض
-  - جدول شروط الدفع + مدة التوريد + الصلاحية + الملاحظات في أقسام منفصلة
-  - Section titles مرتبطة بمحتواها (keep-with-next)
+`src/lib/permissions.ts` — إضافة المفاتيح الناقصة: `use_global_search`, `view_notifications`, `change_quotation_status`, `edit_all_pricing`, `edit_finishing_prices`, `edit_waste_rate`, `edit_tax`, `edit_payment_terms`, `edit_validity`, `manage_settings`, `edit_brand_settings`, `upload_logo`, `create_user`, `edit_user`, `suspend_user`, `activate_user`, `reset_password`, `edit_user_permissions`, `view_sales_reports`, `view_user_reports`, `export_reports_excel`, `export_reports_pdf`, `create_job_order`, `edit_job_order`, `view_customer_in_job_order`، وتحديث `ROLE_DEFAULT_PERMISSIONS` لكل دور طبقًا للمواصفات.
 
-## الجولة 3 — تجربة إنشاء عرض السعر (UX)
+## ٤. صفحة المستخدمين — إعادة تصميم
 
-- Stepper محسّن مع progress + validation لكل خطوة
-- Auto-save draft كل 10 ثواني
-- **Modal إضافة عميل جديد** من داخل الويزارد بدون مغادرة الصفحة
-- **بنود متعددة** (multi-line items) لكل عرض سعر مع سعر وحدة + إجمالي
-- معاينة live للـ PDF جانب النموذج (mini preview)
-- حقول ضريبة/شروط دفع/مدة توريد/صلاحية ظاهرة وقابلة للتعديل
-- زر "حفظ كمسودة" منفصل عن "إصدار نهائي"
+`src/routes/_authenticated/users.tsx`:
+- كروت إحصائية أعلى الصفحة: إجمالي المستخدمين، نشط، موقوف، عدد الأدوار.
+- زر "إضافة مستخدم جديد" (يفتح Sheet جديد `AddUserSheet`).
+- الجدول كما هو مع تحسينات: badge دور، badge حالة، آخر دخول، عدد العروض، إجمالي القيمة.
+- زر "إدارة" يفتح `UserDrawer` الحالي (بعد توسيعه).
 
-## الجولة 4 — UI/UX Enterprise + Dashboard + Filters
+### `AddUserSheet`
+- حقول: الاسم، الإيميل، الهاتف، الدور، القسم، كلمة المرور + التأكيد، الحالة، ملاحظات داخلية.
+- خيار "إرسال دعوة عبر البريد" بدل كلمة المرور.
+- قسم "الصلاحيات" بنفس checklist مقسّم على أقسام قابلة للطي (Accordion).
+- أزرار: تحديد الكل، إلغاء الكل، تطبيق الافتراضي حسب الدور، حفظ، حفظ وإرسال، إلغاء.
+- استدعاء `createUserFn` عبر `useServerFn`.
 
-- **Top bar** جديد: بحث عام (Cmd+K)، إشعارات (عروض تحتاج موافقة/قاربت الانتهاء)، قائمة المستخدم
-- Empty states + Loading skeletons + Success/Error toasts موحدة
-- Dashboard إضافي: عروض قاربت الصلاحية (7 أيام)، عروض تحتاج متابعة، KPIs جديدة (متوسط وقت الاستجابة، معدل الرفض)
-- فلاتر متقدمة في `/quotations`: رقم، عميل، تاريخ (range)، حالة، سيلز، فئة، نطاق قيمة، تحتاج موافقة، قاربت الانتهاء
-- Dropdown export للفلترة الحالية إلى Excel
-- تحسين الـ sidebar بأيقونات وتجميع منطقي
-- تحسين responsive للموبايل
+### `UserDrawer` (توسيع)
+- تبويبات: البيانات الأساسية / الصلاحيات / النشاط.
+- زر إعادة تعيين كلمة المرور (استدعاء `resetPasswordFn`).
+- عرض `user_activity_logs` آخر ٢٠ حدثًا.
+- Confirmation dialog لإيقاف/تفعيل/حذف.
 
----
+## ٥. تفعيل الصلاحيات في كامل التطبيق
 
-## ملاحظات تنفيذية
+`useAuth` يوفّر `permissions: Set<string>` و `can(key)` و `roles`.
 
-- **لن أكسر شيئًا شغالًا**: كل جولة تُختبر مستقلة، والـ migration additive فقط (لا drop لأعمدة موجودة).
-- **VAT**: افتراضي 14% مُفعل، قابل للإيقاف من الإعدادات ومن كل عرض سعر منفردًا.
-- **Job Orders**: صفحة `/job-orders` جديدة تعرض القائمة + تفاصيل الإنتاج + حالة (pending/in_production/completed/delivered).
-- كل جولة تنتهي أُبلغك بما تم واختبار سريع للسيناريو.
+- **Sidebar (`AppShell.tsx`)**: كل عنصر مربوط بمفتاح صلاحية → إخفاء العنصر إذا لم يمتلكها. المالك يرى كل شيء.
+- **صفحات القوائم**:
+  - `quotations.index` — إذا لا يملك `view_all_quotations` نُصفّي بـ `sales_rep_id = auth.uid()`.
+  - `customers` — أزرار الإضافة/التعديل/الحذف تختفي حسب الصلاحيات.
+  - `pricing / finishing / item-templates / import / import-history / job-orders / users / settings` — كل زر إجراء مربوط بمفتاح.
+- **تفاصيل عرض السعر** — تكلفة، هامش الربح، والقسم الداخلي مخفية إذا لا يملك `view_cost/view_profit_margin`. زر PDF داخلي كذلك.
+- **PDF** — `variant="internal"` ممنوع تلقائيًا لمن لا يملك `view_cost`.
 
----
+## ٦. إغلاق التسجيل العام
 
-**هل أبدأ بالجولة 1 (Backend + Workflow + Validations + Job Orders + VAT)؟**
-بعد ما أخلصها وتراجعها، أنتقل للجولة 2 (PDF)، ثم 3، ثم 4.
+`src/routes/auth.tsx`:
+- حذف تبويب "إنشاء حساب" (كان مخفيًا سابقًا لكن نتحقق).
+- حذف "متابعة بحساب جوجل".
+- الشاشة تحتوي فقط: البريد، كلمة المرور، زر تسجيل الدخول، ورابط "نسيت كلمة المرور؟".
+- إبقاء طلب إعادة تعيين كلمة المرور فعّالًا.
+
+## ٧. الاختبار
+
+- إضافة مستخدم بدور مندوب مبيعات → دخوله يعرض عروضه فقط، لا يرى صفحة المستخدمين ولا التكلفة.
+- تعديل صلاحياته لإضافة `view_cost` → تظهر التكلفة فورًا بعد إعادة تسجيل الدخول أو invalidate.
+- محاولة إيقاف المالك → رفض واضح من الـ trigger الموجود.
+- إعادة تعيين كلمة المرور → يستقبل المستخدم البريد.
+
+## الملفات المتأثرة
+
+جديد: `supabase/migrations/<...>_users_admin.sql`, `src/lib/admin-users.functions.ts`, `src/components/users/AddUserSheet.tsx`, `src/components/users/UserActivityList.tsx`.
+
+معدّل: `src/lib/permissions.ts`, `src/hooks/use-auth.ts`, `src/components/AppShell.tsx`, `src/routes/_authenticated/users.tsx`, `src/routes/_authenticated/quotations.index.tsx`, `src/routes/_authenticated/quotations.$id.tsx`, `src/routes/_authenticated/customers.tsx`, `src/routes/_authenticated/pricing.tsx`, `src/routes/_authenticated/finishing.tsx`, `src/routes/_authenticated/import.tsx`, `src/routes/_authenticated/import-history.tsx`, `src/routes/_authenticated/job-orders.tsx`, `src/routes/_authenticated/item-templates.tsx`, `src/routes/_authenticated/settings.tsx`, `src/routes/auth.tsx`, `src/lib/pdf.ts`.
