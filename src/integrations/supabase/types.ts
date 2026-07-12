@@ -139,6 +139,157 @@ export type Database = {
         }
         Relationships: []
       }
+      common_finishings: {
+        Row: {
+          affects_price: boolean
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          suitable_for: Json
+          technical_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          affects_price?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          suitable_for?: Json
+          technical_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          affects_price?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          suitable_for?: Json
+          technical_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      common_products: {
+        Row: {
+          category: string | null
+          created_at: string
+          customer_notes: string | null
+          default_description: string | null
+          id: string
+          internal_notes: string | null
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          suggested_finishings: Json
+          suggested_material_id: string | null
+          suggested_printing_method: string | null
+          suggested_size_id: string | null
+          suggested_weight_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          customer_notes?: string | null
+          default_description?: string | null
+          id?: string
+          internal_notes?: string | null
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          suggested_finishings?: Json
+          suggested_material_id?: string | null
+          suggested_printing_method?: string | null
+          suggested_size_id?: string | null
+          suggested_weight_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          customer_notes?: string | null
+          default_description?: string | null
+          id?: string
+          internal_notes?: string | null
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          suggested_finishings?: Json
+          suggested_material_id?: string | null
+          suggested_printing_method?: string | null
+          suggested_size_id?: string | null
+          suggested_weight_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "common_products_suggested_material_id_fkey"
+            columns: ["suggested_material_id"]
+            isOneToOne: false
+            referencedRelation: "paper_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "common_products_suggested_size_id_fkey"
+            columns: ["suggested_size_id"]
+            isOneToOne: false
+            referencedRelation: "common_sizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "common_products_suggested_weight_id_fkey"
+            columns: ["suggested_weight_id"]
+            isOneToOne: false
+            referencedRelation: "paper_weights"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      common_sizes: {
+        Row: {
+          created_at: string
+          height: number | null
+          id: string
+          is_active: boolean
+          name: string
+          size_type: string | null
+          suitable_for: Json
+          unit: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          size_type?: string | null
+          suitable_for?: Json
+          unit?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          size_type?: string | null
+          suitable_for?: Json
+          unit?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -543,6 +694,84 @@ export type Database = {
           },
         ]
       }
+      paper_materials: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          internal_notes: string | null
+          is_active: boolean
+          material_type: string | null
+          name_ar: string
+          name_en: string | null
+          suitable_for: Json
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          internal_notes?: string | null
+          is_active?: boolean
+          material_type?: string | null
+          name_ar: string
+          name_en?: string | null
+          suitable_for?: Json
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          internal_notes?: string | null
+          is_active?: boolean
+          material_type?: string | null
+          name_ar?: string
+          name_en?: string | null
+          suitable_for?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      paper_weights: {
+        Row: {
+          created_at: string
+          display_name: string
+          gsm: number
+          id: string
+          is_active: boolean
+          material_ids: Json
+          product_categories: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          gsm: number
+          id?: string
+          is_active?: boolean
+          material_ids?: Json
+          product_categories?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          gsm?: number
+          id?: string
+          is_active?: boolean
+          material_ids?: Json
+          product_categories?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pricing_rules: {
         Row: {
           category: string
@@ -583,6 +812,64 @@ export type Database = {
             columns: ["import_batch_id"]
             isOneToOne: false
             referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_material_rules: {
+        Row: {
+          common_product_id: string
+          created_at: string
+          finishing_ids: Json
+          id: string
+          is_default: boolean
+          material_id: string | null
+          priority: number
+          updated_at: string
+          weight_id: string | null
+        }
+        Insert: {
+          common_product_id: string
+          created_at?: string
+          finishing_ids?: Json
+          id?: string
+          is_default?: boolean
+          material_id?: string | null
+          priority?: number
+          updated_at?: string
+          weight_id?: string | null
+        }
+        Update: {
+          common_product_id?: string
+          created_at?: string
+          finishing_ids?: Json
+          id?: string
+          is_default?: boolean
+          material_id?: string | null
+          priority?: number
+          updated_at?: string
+          weight_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_material_rules_common_product_id_fkey"
+            columns: ["common_product_id"]
+            isOneToOne: false
+            referencedRelation: "common_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_material_rules_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "paper_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_material_rules_weight_id_fkey"
+            columns: ["weight_id"]
+            isOneToOne: false
+            referencedRelation: "paper_weights"
             referencedColumns: ["id"]
           },
         ]
