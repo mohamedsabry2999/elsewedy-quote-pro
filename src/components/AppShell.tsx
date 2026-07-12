@@ -23,6 +23,7 @@ const adminNav: NavItem[] = [
   { to: "/users", icon: Shield, label: "المستخدمون والصلاحيات", perm: "manage_users" },
   { to: "/pricing", icon: DollarSign, label: "قواعد التسعير", perm: "view_pricing" },
   { to: "/finishing", icon: Scissors, label: "خدمات التشطيبات", perm: "view_pricing" },
+  { to: "/library", icon: Library, label: "مكتبة الخامات والمنتجات", perm: "view_material_library" },
   { to: "/item-templates", icon: Layers, label: "قوالب البنود", perm: "manage_item_templates" },
   { to: "/import-history", icon: History, label: "سجل رفع البيانات", perm: "view_import_history" },
   { to: "/import", icon: FileSpreadsheet, label: "استيراد Excel (قديم)", perm: "import_customers" },
