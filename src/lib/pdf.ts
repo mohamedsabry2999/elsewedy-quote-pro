@@ -449,8 +449,8 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
       doc.querySelectorAll("style").forEach((s) => { if (!el.contains(s)) s.parentNode?.removeChild(s); });
       const reset = doc.createElement("style");
       reset.textContent = `:root,html,body{color-scheme:light !important;background:#fff !important;color:#1f2937 !important;}
-        *{font-family:'Cairo','Noto Kufi Arabic','Tajawal','Segoe UI',Arial,sans-serif !important;}
-        .num,.money{font-family:'Cairo','Segoe UI',Arial,sans-serif !important;}`;
+        *{font-family:'Cairo','Noto Kufi Arabic','Tajawal','Segoe UI',Arial,sans-serif !important;letter-spacing:0 !important;}
+        .num,.money{font-variant-numeric:tabular-nums !important;font-feature-settings:"tnum" !important;}`;
       doc.head.appendChild(reset);
     },
   });
