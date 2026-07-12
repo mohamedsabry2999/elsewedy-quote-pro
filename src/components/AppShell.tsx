@@ -2,34 +2,49 @@ import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-route
 import { LayoutDashboard, Users, FileText, Settings, LogOut, Plus, DollarSign, Bell, Scissors, FileSpreadsheet, Factory, Shield, Search, ImageIcon, Layers, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { ROLE_LABELS, canManagePricing } from "@/lib/roles";
+import { ROLE_LABELS } from "@/lib/roles";
+import type { PermissionKey } from "@/lib/permissions";
 import { useBrand } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-const OWNER_EMAIL = "mohamedsabryabdelfatah@gmail.com";
+type NavItem = { to: string; icon: typeof LayoutDashboard; label: string; perm?: PermissionKey };
 
-const nav = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم" },
-  { to: "/quotations", icon: FileText, label: "عروض الأسعار" },
-  { to: "/quotations/new", icon: Plus, label: "إنشاء عرض سعر" },
-  { to: "/job-orders", icon: Factory, label: "أوامر التشغيل" },
-  { to: "/customers", icon: Users, label: "العملاء" },
-] as const;
+const mainNav: NavItem[] = [
+  { to: "/dashboard", icon: LayoutDashboard, label: "لوحة التحكم", perm: "view_dashboard" },
+  { to: "/quotations", icon: FileText, label: "عروض الأسعار", perm: "view_own_quotations" },
+  { to: "/quotations/new", icon: Plus, label: "إنشاء عرض سعر", perm: "create_quotation" },
+  { to: "/job-orders", icon: Factory, label: "أوامر التشغيل", perm: "view_job_orders" },
+  { to: "/customers", icon: Users, label: "العملاء", perm: "view_customers" },
+];
+
+const adminNav: NavItem[] = [
+  { to: "/users", icon: Shield, label: "المستخدمون والصلاحيات", perm: "manage_users" },
+  { to: "/pricing", icon: DollarSign, label: "قواعد التسعير", perm: "view_pricing" },
+  { to: "/finishing", icon: Scissors, label: "خدمات التشطيبات", perm: "view_pricing" },
+  { to: "/item-templates", icon: Layers, label: "قوالب البنود", perm: "manage_item_templates" },
+  { to: "/import-history", icon: History, label: "سجل رفع البيانات", perm: "view_import_history" },
+  { to: "/import", icon: FileSpreadsheet, label: "استيراد Excel (قديم)", perm: "import_customers" },
+  { to: "/settings", icon: ImageIcon, label: "إعدادات الهوية والـ PDF", perm: "manage_settings" },
+];
 
 export function AppShell() {
   const { pathname } = useRouterState({ select: (s) => s.location });
   const auth = useAuth();
   const brand = useBrand();
   const navigate = useNavigate();
-  const isAdmin = canManagePricing(auth.roles) || auth.email?.toLowerCase() === OWNER_EMAIL;
+
+  const canSee = (perm?: PermissionKey) => !perm || auth.can(perm);
+  const visibleMain = mainNav.filter((n) => canSee(n.perm));
+  const visibleAdmin = adminNav.filter((n) => canSee(n.perm));
 
   const signOut = async () => {
     await supabase.auth.signOut();
     toast.success("تم تسجيل الخروج");
     navigate({ to: "/auth" });
   };
+
 
   return (
     <div className="min-h-screen flex bg-background">
