@@ -1,6 +1,9 @@
 // PDF generation for Elsewedy quotations — multi-item, brand-aware, smart pagination.
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import QRCode from "qrcode";
+import { currency, dateAr, number, percent } from "./format";
+import type { BrandSettings } from "./brand";
 import { currency, dateAr, number, percent } from "./format";
 import type { BrandSettings } from "./brand";
 
