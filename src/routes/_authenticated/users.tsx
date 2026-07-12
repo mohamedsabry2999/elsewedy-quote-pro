@@ -567,5 +567,6 @@ function actionLabel(a: string): string {
   return map[a] ?? a;
 }
 
-// silence unused import guard
-void PermissionKey;
+// keep PermissionKey type import used
+export type _PK = PermissionKey;
+
