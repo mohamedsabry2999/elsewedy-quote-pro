@@ -87,6 +87,15 @@ export type PermissionKey =
   | "edit_user_permissions"
   | "manage_settings"
   | "edit_brand_settings"
+  // Material library
+  | "view_material_library"
+  | "manage_material_library"
+  | "manual_material_entry"
+  | "manual_weight_entry"
+  | "manual_size_entry"
+  | "manual_finishing_entry"
+  | "manual_product_entry"
+  | "save_manual_to_library"
   | "upload_logo"
   // Legacy compatibility
   | "manage_customers"
