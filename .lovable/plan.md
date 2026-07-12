@@ -1,77 +1,98 @@
-# خطة تطوير إدارة المستخدمين والصلاحيات
+# Elsewedy Smart Quotation — Full System Audit & Upgrade
 
-الصفحة الحالية بها Drawer لتعديل الأدوار والصلاحيات، لكن ينقصها إنشاء مستخدم جديد آمن، توسّع في قائمة الصلاحيات، تفعيل هذه الصلاحيات فعليًا في الواجهات والـ Sidebar، وإغلاق التسجيل العام. الخطة تُنفّذ الكل دفعة واحدة.
+هذا العمل ضخم جدًا (١٥+ صفحة، محرك PDF كامل، RLS، صلاحيات، Excel، واتساب، UI/UX). لتنفيذه بجودة Enterprise حقيقية بدون كسر النظام، سأقسمه إلى مراحل متتابعة. كل مرحلة قابلة للاختبار قبل الانتقال للتالية.
 
-## ١. قاعدة البيانات (migration واحدة)
+## أولوية التنفيذ
 
-- إضافة أعمدة على `profiles`: `department` (text)، `internal_notes` (text)، `phone` موجود مسبقًا.
-- إنشاء جدول `user_activity_logs` (user_id, action, details, created_at) مع RLS: يقرأه المالك/الأدمن، وتكتب فيه الدوال فقط.
-- إضافة كل مفاتيح الصلاحيات الجديدة (لا يوجد enum ثابت — المفاتيح نصية، سنستخدم فقط ثابتة في الفرونت).
-- سياسة RLS جديدة على `profiles` تسمح لمن يملك `manage_users` بقراءة الكل.
-- سياسة RLS جديدة على `user_permissions` تسمح لمن يملك `manage_users` بالكتابة.
+الأولوية القصوى بحسب طلبك: **ملف PDF** (لأنه أهم مخرج للنظام) + **الوظائف الفعلية للأزرار** + **الصلاحيات الحقيقية (RLS)**. الشكل والألوان بعدها.
 
-## ٢. Server functions للعمليات الحساسة
+---
 
-يُنشأ `src/lib/admin-users.functions.ts` بمعرِّف `requireSupabaseAuth` + فحص `has_role('admin')/is_owner`، وتستخدم `supabaseAdmin` داخل الـ handler فقط.
-- `createUserFn` — ينشئ Auth User، Profile، User Role، وصلاحيات (الافتراضية أو المحددة). خيار "إرسال دعوة" باستخدام `inviteUserByEmail`.
-- `resetPasswordFn` — يرسل رابط إعادة تعيين للمستخدم.
-- `deleteUserFn` — يحذف المستخدم (مع منع المالك).
-- `logActivityFn` — يسجّل حدث في `user_activity_logs`.
+## المرحلة 1 — محرك PDF الاحترافي (الأهم)
 
-## ٣. توسيع قائمة الصلاحيات
+**إعادة بناء `src/lib/pdf.ts` بالكامل** باستخدام pdfmake مع خط عربي مدمج (Cairo) — لأنه يدعم RTL و pagination ذكي بشكل أفضل من jsPDF.
 
-`src/lib/permissions.ts` — إضافة المفاتيح الناقصة: `use_global_search`, `view_notifications`, `change_quotation_status`, `edit_all_pricing`, `edit_finishing_prices`, `edit_waste_rate`, `edit_tax`, `edit_payment_terms`, `edit_validity`, `manage_settings`, `edit_brand_settings`, `upload_logo`, `create_user`, `edit_user`, `suspend_user`, `activate_user`, `reset_password`, `edit_user_permissions`, `view_sales_reports`, `view_user_reports`, `export_reports_excel`, `export_reports_pdf`, `create_job_order`, `edit_job_order`, `view_customer_in_job_order`، وتحديث `ROLE_DEFAULT_PERMISSIONS` لكل دور طبقًا للمواصفات.
+- خط Cairo مدمج (base64) لعدم قطع الحروف.
+- A4 ثابت، margins ثابتة، Header/Footer مع Page X of Y.
+- كل بند = "كارت" واحد لا يُقسم (unbreakable block). لو لم يتسع، ينزل للصفحة التالية كاملًا.
+- بند أطول من صفحة: يُقسم بذكاء مع تكرار "تابع بند رقم X" ورأس الجدول.
+- تنسيق الأرقام: `12,500.00 ج.م` (Intl.NumberFormat ar-EG).
+- ترجمة القيم التقنية (gloss_lam → سلوفان لامع...) عبر قاموس مركزي.
+- **نسختان**: Customer PDF (بدون تكلفة/ربح) و Internal PDF (كل شيء).
+- QR Code، بيانات الشركة، هوية Medhat Elsewedy في الهيدر/الفوتر.
+- ترتيب الصفحات كما طلبت (هيدر → بيانات العميل → تفاصيل العرض → البنود → ملخص مالي → شروط → QR → فوتر).
 
-## ٤. صفحة المستخدمين — إعادة تصميم
+## المرحلة 2 — صفحة معاينة PDF
 
-`src/routes/_authenticated/users.tsx`:
-- كروت إحصائية أعلى الصفحة: إجمالي المستخدمين، نشط، موقوف، عدد الأدوار.
-- زر "إضافة مستخدم جديد" (يفتح Sheet جديد `AddUserSheet`).
-- الجدول كما هو مع تحسينات: badge دور، badge حالة، آخر دخول، عدد العروض، إجمالي القيمة.
-- زر "إدارة" يفتح `UserDrawer` الحالي (بعد توسيعه).
+- Route جديد `/quotations/$id/preview` مع Toggle بين Customer/Internal.
+- أزرار: تحميل، طباعة، واتساب، رجوع للتعديل.
+- المعاينة مطابقة تمامًا للـ PDF (نفس المحرك).
 
-### `AddUserSheet`
-- حقول: الاسم، الإيميل، الهاتف، الدور، القسم، كلمة المرور + التأكيد، الحالة، ملاحظات داخلية.
-- خيار "إرسال دعوة عبر البريد" بدل كلمة المرور.
-- قسم "الصلاحيات" بنفس checklist مقسّم على أقسام قابلة للطي (Accordion).
-- أزرار: تحديد الكل، إلغاء الكل، تطبيق الافتراضي حسب الدور، حفظ، حفظ وإرسال، إلغاء.
-- استدعاء `createUserFn` عبر `useServerFn`.
+## المرحلة 3 — واتساب الذكي
 
-### `UserDrawer` (توسيع)
-- تبويبات: البيانات الأساسية / الصلاحيات / النشاط.
-- زر إعادة تعيين كلمة المرور (استدعاء `resetPasswordFn`).
-- عرض `user_activity_logs` آخر ٢٠ حدثًا.
-- Confirmation dialog لإيقاف/تفعيل/حذف.
+- توليد PDF العميل → تحميل تلقائي.
+- تحية حسب توقيت Africa/Cairo (صباح/مساء).
+- فتح `wa.me` بالرسالة الجاهزة + تنبيه لإرفاق الملف.
 
-## ٥. تفعيل الصلاحيات في كامل التطبيق
+## المرحلة 4 — RLS وصلاحيات حقيقية
 
-`useAuth` يوفّر `permissions: Set<string>` و `can(key)` و `roles`.
+- مراجعة policies على `quotations` و `quotation_items` و `customers` و `job_orders`:
+  - كل مستخدم يرى **صفوفه فقط** (`sales_rep_id = auth.uid()`) افتراضيًا.
+  - صلاحية `view_all_quotations` تعطي رؤية شاملة عبر `has_permission()`.
+  - Admin/Owner يرى كل شيء.
+- تعطيل sign-up العام من واجهة `/auth`.
+- منع رؤية cost/margin بدون صلاحية `view_cost` / `view_margin`.
 
-- **Sidebar (`AppShell.tsx`)**: كل عنصر مربوط بمفتاح صلاحية → إخفاء العنصر إذا لم يمتلكها. المالك يرى كل شيء.
-- **صفحات القوائم**:
-  - `quotations.index` — إذا لا يملك `view_all_quotations` نُصفّي بـ `sales_rep_id = auth.uid()`.
-  - `customers` — أزرار الإضافة/التعديل/الحذف تختفي حسب الصلاحيات.
-  - `pricing / finishing / item-templates / import / import-history / job-orders / users / settings` — كل زر إجراء مربوط بمفتاح.
-- **تفاصيل عرض السعر** — تكلفة، هامش الربح، والقسم الداخلي مخفية إذا لا يملك `view_cost/view_profit_margin`. زر PDF داخلي كذلك.
-- **PDF** — `variant="internal"` ممنوع تلقائيًا لمن لا يملك `view_cost`.
+## المرحلة 5 — تدقيق كل صفحة (Buttons/Empty/Loading/Error)
 
-## ٦. إغلاق التسجيل العام
+مراجعة منهجية لكل صفحة موجودة:
 
-`src/routes/auth.tsx`:
-- حذف تبويب "إنشاء حساب" (كان مخفيًا سابقًا لكن نتحقق).
-- حذف "متابعة بحساب جوجل".
-- الشاشة تحتوي فقط: البريد، كلمة المرور، زر تسجيل الدخول، ورابط "نسيت كلمة المرور؟".
-- إبقاء طلب إعادة تعيين كلمة المرور فعّالًا.
+| الصفحة | الفحص |
+|---|---|
+| Dashboard | KPIs حقيقية، فلترة بالمستخدم |
+| Quotations list | فلاتر تعمل، بحث، pagination، تصدير |
+| Quotation new/edit | Stepper، Autosave، Duplicate/Reorder، Manual + Library |
+| Quotation detail | كل الأزرار (PDF/WA/Convert to JO/Status change) |
+| Customers | CRUD كامل + بحث |
+| Job Orders | حالة، طباعة، ربط بالعرض |
+| Users & Permissions | مراجعة سابقة موجودة — إضافة إعادة تعيين كلمة السر |
+| Library | مراجعة CRUD كامل للتبويبات الخمس |
+| Pricing Rules | تفعيل CRUD إن كانت شكلية |
+| Finishing Services | تفعيل CRUD |
+| Item Templates | تفعيل CRUD |
+| Import Batches | عرض سجل + إعادة تشغيل |
+| Excel Import | Column mapping ذكي (عربي/إنجليزي) + Preview + Errors |
+| Brand Settings | معاينة فورية لتغييرات الهوية |
 
-## ٧. الاختبار
+كل زر وهمي → يُفعّل أو يُحذف. كل empty state يحصل على illustration + CTA.
 
-- إضافة مستخدم بدور مندوب مبيعات → دخوله يعرض عروضه فقط، لا يرى صفحة المستخدمين ولا التكلفة.
-- تعديل صلاحياته لإضافة `view_cost` → تظهر التكلفة فورًا بعد إعادة تسجيل الدخول أو invalidate.
-- محاولة إيقاف المالك → رفض واضح من الـ trigger الموجود.
-- إعادة تعيين كلمة المرور → يستقبل المستخدم البريد.
+## المرحلة 6 — UI/UX Polish (هوية Medhat Elsewedy)
 
-## الملفات المتأثرة
+- تحديث `src/styles.css`: tokens بألوان الشركة (أحمر/برتقالي/رمادي داكن).
+- Sidebar، Header، Cards، Tables، Modals، Toasts.
+- Loading skeletons موحدة.
+- رسائل خطأ عربية واضحة (بدون permission denied/null).
 
-جديد: `supabase/migrations/<...>_users_admin.sql`, `src/lib/admin-users.functions.ts`, `src/components/users/AddUserSheet.tsx`, `src/components/users/UserActivityList.tsx`.
+## المرحلة 7 — Excel Import محسّن
 
-معدّل: `src/lib/permissions.ts`, `src/hooks/use-auth.ts`, `src/components/AppShell.tsx`, `src/routes/_authenticated/users.tsx`, `src/routes/_authenticated/quotations.index.tsx`, `src/routes/_authenticated/quotations.$id.tsx`, `src/routes/_authenticated/customers.tsx`, `src/routes/_authenticated/pricing.tsx`, `src/routes/_authenticated/finishing.tsx`, `src/routes/_authenticated/import.tsx`, `src/routes/_authenticated/import-history.tsx`, `src/routes/_authenticated/job-orders.tsx`, `src/routes/_authenticated/item-templates.tsx`, `src/routes/_authenticated/settings.tsx`, `src/routes/auth.tsx`, `src/lib/pdf.ts`.
+- `field_aliases` موجود بالفعل — تفعيل mapping ذكي.
+- Preview + row-level errors + batch progress.
+- ربط تلقائي بالمستخدم + احترام الصلاحيات.
+
+## المرحلة 8 — اختبار End-to-End
+
+تشغيل السيناريوهات الـ 24 التي ذكرتها عبر Playwright، مع لقطات شاشة لكل خطوة.
+
+---
+
+## اقتراح التنفيذ الآن
+
+لا يمكنني تنفيذ كل هذا في رد واحد بجودة عالية (سيؤدي لأخطاء وعمل سطحي). أقترح:
+
+**أبدأ فورًا بالمرحلة 1 (محرك PDF الجديد)** لأنها الأهم والأكثر إلحاحًا، ثم أعرض عليك النتيجة، ونتحرك للمرحلة 2 وهكذا.
+
+**أو** أبدأ بالمرحلتين 1+4 معًا (PDF + RLS/Permissions) لأنهما الأخطر تقنيًا.
+
+**أو** ترتيب مختلف تحدده أنت.
+
+أخبرني بأي مرحلة أبدأ (أو "ابدأ بالمرحلة 1")، وسأنفذها بالكامل وأعود إليك بنتيجة قابلة للاختبار.

@@ -132,7 +132,7 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
     const rows = Object.entries(cb).filter(([, v]) => typeof v === "number" && v !== 0)
       .map(([k, v]) => `<tr><td>${COST_LABELS[k] ?? k}</td><td class="money">${money(v as number)}</td></tr>`).join("");
     if (rows || it.unit_cost) {
-      internal = `<div class="internal">
+      internal = `<div class="internal" data-pdf-subsection="internal">
         <div class="it-t">تحليل التكلفة الداخلية</div>
         <table>${rows}${it.unit_cost ? `<tr><td>تكلفة الوحدة</td><td class="money">${money(it.unit_cost)}</td></tr>` : ""}</table>
         ${it.profit_margin_pct ? `<div class="sm">هامش الربح: <span class="num">${pct(it.profit_margin_pct)}</span></div>` : ""}
@@ -142,17 +142,20 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
   }
 
   const num = it.item_number ?? index + 1;
-  const custNotes = it.customer_notes ? `<div class="item-notes"><b>ملاحظة:</b> ${it.customer_notes}</div>` : "";
+  const custNotes = it.customer_notes ? `<div class="item-notes" data-pdf-subsection="notes"><b>ملاحظة:</b> ${it.customer_notes}</div>` : "";
 
+  // data-pdf-item-num used to emit "تابع بند X" continuation headers when this
+  // block spans pages. Sub-sections carry data-pdf-subsection so the slicer can
+  // fall back to internal boundaries when a whole item is taller than one page.
   return `
-  <div class="item" data-pdf-section="item">
-    <div class="ihead">
+  <div class="item" data-pdf-section="item" data-pdf-item-num="${num}">
+    <div class="ihead" data-pdf-subsection="head">
       <div class="it"><span class="ino">بند ${num}</span><span>${it.title ?? "—"}</span></div>
       <div class="iqty"><span class="num">${qty(it.quantity)}</span> ${it.unit ?? "قطعة"}</div>
     </div>
-    ${it.description ? `<div class="idesc">${it.description}</div>` : ""}
-    ${specsInner ? `<div class="specs">${specsInner}</div>` : ""}
-    <table class="price-tbl"><tr>
+    ${it.description ? `<div class="idesc" data-pdf-subsection="desc">${it.description}</div>` : ""}
+    ${specsInner ? `<div class="specs" data-pdf-subsection="specs">${specsInner}</div>` : ""}
+    <table class="price-tbl" data-pdf-subsection="price"><tr>
       <td><div class="lbl">الكمية</div><div class="val"><span class="num">${qty(it.quantity)}</span></div></td>
       <td><div class="lbl">سعر الوحدة</div><div class="val money">${money(it.unit_price)}</div></td>
       <td style="text-align:left"><div class="lbl">الإجمالي</div><div class="val grand money">${money(it.total_price)}</div></td>
@@ -380,14 +383,34 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
   })));
 
   // Snapshot section top offsets in CSS pixels relative to the container.
+  // PRIMARY breakpoints: whole-item / whole-section starts (preferred cuts).
+  // SECONDARY breakpoints: sub-blocks inside an item (fallback for items
+  // taller than a single page).
   const rectTop = container.getBoundingClientRect().top;
-  const nodes = Array.from(container.querySelectorAll<HTMLElement>("[data-pdf-section], .item"));
-  const breakPoints: number[] = []; // ordered list of Y offsets that are safe page-break candidates
-  for (const n of nodes) {
-    const y = n.getBoundingClientRect().top - rectTop;
-    if (y >= 0) breakPoints.push(Math.floor(y));
-  }
-  breakPoints.sort((a, b) => a - b);
+  const primaryBreaks: number[] = [];
+  const secondaryBreaks: number[] = [];
+  // Map Y offset (in canvas px, filled after scaling) → item number for
+  // continuation headers.
+  const itemStartAtY = new Map<number, number>(); // css-px Y → item number
+  const itemEndAtY = new Map<number, number>();   // css-px Y (bottom) → item number
+  container.querySelectorAll<HTMLElement>("[data-pdf-section]").forEach((n) => {
+    const y = Math.floor(n.getBoundingClientRect().top - rectTop);
+    if (y >= 0) primaryBreaks.push(y);
+    if (n.dataset.pdfSection === "item") {
+      const num = Number(n.dataset.pdfItemNum ?? 0);
+      if (num > 0) {
+        itemStartAtY.set(y, num);
+        const bottom = Math.floor(n.getBoundingClientRect().bottom - rectTop);
+        itemEndAtY.set(bottom, num);
+      }
+    }
+  });
+  container.querySelectorAll<HTMLElement>("[data-pdf-subsection]").forEach((n) => {
+    const y = Math.floor(n.getBoundingClientRect().top - rectTop);
+    if (y >= 0) secondaryBreaks.push(y);
+  });
+  primaryBreaks.sort((a, b) => a - b);
+  secondaryBreaks.sort((a, b) => a - b);
 
   // Rasterize
   const canvas = await html2canvas(container, {
@@ -406,11 +429,16 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
   });
   document.body.removeChild(container);
 
-  // Convert breakPoints from CSS px (container width=780) to canvas px.
-  // html2canvas at scale 2 → canvas.width ≈ 800*2 = 1600 (windowWidth was 800).
+  // Convert breakpoints from CSS px (container width=780) to canvas px.
   const cssWidth = 780;
   const cssToCanvas = canvas.width / cssWidth;
-  const breaksCanvas = breakPoints.map((b) => Math.floor(b * cssToCanvas));
+  const primaryCanvas = primaryBreaks.map((b) => Math.floor(b * cssToCanvas));
+  const secondaryCanvas = secondaryBreaks.map((b) => Math.floor(b * cssToCanvas));
+  // Item-continuation tracking in canvas px.
+  const itemStarts = new Map<number, number>();
+  const itemEnds = new Map<number, number>();
+  itemStartAtY.forEach((num, y) => itemStarts.set(Math.floor(y * cssToCanvas), num));
+  itemEndAtY.forEach((num, y) => itemEnds.set(Math.floor(y * cssToCanvas), num));
 
   // Set up A4 page geometry.
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
@@ -418,43 +446,87 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
   const pageH = pdf.internal.pageSize.getHeight();
   const marginX = 28;
   const marginTop = 26;
-  const marginBottom = 34; // reserved for page number
+  const marginBottom = 34;
   const contentW = pageW - marginX * 2;
   const contentH = pageH - marginTop - marginBottom;
   const pxPerPt = canvas.width / contentW;
   const pageHpx = Math.floor(contentH * pxPerPt);
 
-  // Slice the canvas into pages, choosing a break at the largest breakpoint
-  // that lies within the current page window; if none, force-cut at pageHpx.
+  // Slice with priority: prefer PRIMARY (item/section boundaries). If none is
+  // available in the page window, fall back to SECONDARY (in-item sub-blocks).
+  // If still nothing, hard-cut at idealEnd. This guarantees whole items stay
+  // together whenever they fit within a page, and larger items break at clean
+  // sub-boundaries instead of mid-row.
+  const findBreak = (arr: number[], startY: number, idealEnd: number, minAdvance: number): number => {
+    let chosen = -1;
+    for (const b of arr) {
+      if (b > startY + minAdvance && b <= idealEnd) chosen = b;
+      else if (b > idealEnd) break;
+    }
+    return chosen;
+  };
+
+  // Determine which item (if any) is being continued at a given Y (canvas px):
+  // the item whose start ≤ Y and whose end > Y.
+  const itemAtY = (y: number): number | null => {
+    let best: { num: number; start: number } | null = null;
+    itemStarts.forEach((num, start) => {
+      if (start <= y) {
+        const end = [...itemEnds.entries()].find(([, n]) => n === num)?.[0] ?? 0;
+        if (end > y && (!best || start > best.start)) best = { num, start };
+      }
+    });
+    return best ? (best as any).num : null;
+  };
+
   let startY = 0;
   let pageIndex = 0;
   while (startY < canvas.height) {
     const idealEnd = Math.min(startY + pageHpx, canvas.height);
     let endY = idealEnd;
     if (idealEnd < canvas.height) {
-      // find the largest breakpoint strictly greater than startY and <= idealEnd
-      let chosen = -1;
-      for (const b of breaksCanvas) {
-        if (b > startY + 40 && b <= idealEnd) chosen = b;
-        else if (b > idealEnd) break;
-      }
-      // If the very next breakpoint is only slightly past idealEnd and the
-      // "content since last break" is tall (a single item bigger than one page),
-      // we still have to hard-cut at idealEnd — fall through.
+      // Require the chosen break to advance at least 30% of the page — this
+      // prevents items sitting near the top from wasting most of the page.
+      const minAdvance = Math.max(60, Math.floor(pageHpx * 0.30));
+      let chosen = findBreak(primaryCanvas, startY, idealEnd, minAdvance);
+      if (chosen < 0) chosen = findBreak(secondaryCanvas, startY, idealEnd, minAdvance);
+      if (chosen < 0) chosen = findBreak(primaryCanvas, startY, idealEnd, 40);
+      if (chosen < 0) chosen = findBreak(secondaryCanvas, startY, idealEnd, 40);
       if (chosen > 0) endY = chosen;
     }
 
     const sliceH = endY - startY;
+    // Continuation header: is the very top of this page inside an item that
+    // started earlier?
+    const continuedItem = pageIndex > 0 ? itemAtY(startY + 1) : null;
+    const headerStripPx = continuedItem ? Math.floor(24 * pxPerPt) : 0;
+
     const slice = document.createElement("canvas");
     slice.width = canvas.width;
-    slice.height = sliceH;
+    slice.height = sliceH + headerStripPx;
     const ctx = slice.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(canvas, 0, startY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+    if (continuedItem) {
+      // Small "تابع بند رقم X" strip. We draw it as text on canvas; because
+      // this canvas is later embedded as an image, native Arabic shaping is
+      // preserved by the browser's canvas 2D text renderer.
+      ctx.fillStyle = "#faf7f6";
+      ctx.fillRect(0, 0, slice.width, headerStripPx);
+      ctx.fillStyle = "#C8102E";
+      ctx.fillRect(slice.width - Math.floor(4 * pxPerPt), 0, Math.floor(4 * pxPerPt), headerStripPx);
+      ctx.fillStyle = "#1f2937";
+      const fontPx = Math.floor(11 * pxPerPt);
+      ctx.font = `700 ${fontPx}px Cairo, "Noto Kufi Arabic", Tajawal, Arial, sans-serif`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.direction = "rtl" as CanvasDirection;
+      ctx.fillText(`تابع بند رقم ${continuedItem} …`, slice.width - Math.floor(14 * pxPerPt), headerStripPx / 2);
+    }
+    ctx.drawImage(canvas, 0, startY, canvas.width, sliceH, 0, headerStripPx, canvas.width, sliceH);
     const img = slice.toDataURL("image/jpeg", 0.94);
     if (pageIndex > 0) pdf.addPage();
-    const drawH = sliceH / pxPerPt;
+    const drawH = (sliceH + headerStripPx) / pxPerPt;
     pdf.addImage(img, "JPEG", marginX, marginTop, contentW, drawH);
     startY = endY;
     pageIndex += 1;
