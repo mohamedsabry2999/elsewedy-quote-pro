@@ -158,7 +158,7 @@ function itemHtml(it: any, index: number, variant: "customer" | "internal"): str
   return `
   <div class="item" data-pdf-section="item" data-pdf-item-num="${num}">
     <div class="ihead" data-pdf-subsection="head">
-      <div class="it"><span class="ino">بند ${num}</span><span>${it.title ?? "—"}</span></div>
+      <div class="it"><span class="ino">بند <span class="n">${num}</span></span><span class="t">${it.title ?? "—"}</span></div>
       <div class="iqty"><span class="num">${qty(it.quantity)}</span> ${it.unit ?? "قطعة"}</div>
     </div>
     ${it.description ? `<div class="idesc" data-pdf-subsection="desc">${it.description}</div>` : ""}
@@ -213,73 +213,81 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
 
   container.innerHTML = `
     <style>
-      *{box-sizing:border-box;}
-      .num{font-family:'Segoe UI',Arial,sans-serif;direction:ltr;unicode-bidi:isolate;display:inline-block;}
-      .money{font-family:'Segoe UI',Arial,sans-serif;unicode-bidi:isolate;white-space:nowrap;}
+      *{box-sizing:border-box;letter-spacing:0 !important;}
+      /* Arabic must NEVER get letter-spacing — it breaks glyph joining
+         (turns "بيانات" into "ن و يات"). Keep Cairo everywhere and only
+         isolate numeric runs with unicode-bidi so digits render LTR
+         inside RTL text. */
+      .num{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+      .money{unicode-bidi:isolate;white-space:nowrap;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
 
       .hero{border-bottom:3px solid ${primary};padding-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}
       .brand{display:flex;gap:14px;align-items:flex-start;}
       .brand img{max-height:72px;max-width:210px;object-fit:contain;}
-      .brand .name{font-size:20px;font-weight:800;color:${primary};}
-      .brand .name-en{font-size:11px;color:#6b7280;margin-top:2px;letter-spacing:.4px;}
-      .brand .meta{font-size:10.5px;color:#6b7280;margin-top:4px;}
-      .qcard{background:linear-gradient(135deg,${primary},${secondary});color:#fff;padding:12px 16px;border-radius:12px;min-width:210px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);}
-      .qcard .k{font-size:10px;opacity:.92;letter-spacing:.4px;}
-      .qcard .v{font-size:18px;font-weight:800;margin-top:3px;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:.6px;}
-      .qcard .date{font-size:10px;opacity:.9;margin-top:4px;}
-      .badge-int{margin-top:8px;background:#fef3c7;color:#7c5b12;font-size:9.5px;font-weight:700;padding:4px 10px;border-radius:6px;text-align:center;}
+      .brand .name{font-size:20px;font-weight:800;color:${primary};line-height:1.3;}
+      .brand .name-en{font-size:11px;color:#6b7280;margin-top:2px;line-height:1.3;}
+      .brand .meta{font-size:10.5px;color:#6b7280;margin-top:4px;line-height:1.6;}
+      .qcard{background:linear-gradient(135deg,${primary},${secondary});color:#fff;padding:14px 18px;border-radius:12px;min-width:210px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+      .qcard .k{font-size:11px;opacity:.95;line-height:1.5;margin-bottom:2px;}
+      .qcard .v{font-size:18px;font-weight:800;margin-top:2px;line-height:1.4;direction:ltr;unicode-bidi:isolate;}
+      .qcard .date{font-size:10.5px;opacity:.95;margin-top:4px;direction:ltr;unicode-bidi:isolate;}
+      .badge-int{margin-top:8px;background:#fef3c7;color:#7c5b12;font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;text-align:center;line-height:1.5;}
 
       .info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
       .info .box{background:#faf7f6;border-right:3px solid ${primary};border-radius:8px;padding:12px 14px;}
-      .info .lbl{font-size:10px;color:#9ca3af;margin-bottom:4px;letter-spacing:.3px;}
-      .info .name{font-weight:800;font-size:13.5px;color:${accent};}
-      .info .line{font-size:11px;color:#4b5563;margin-top:3px;}
+      .info .lbl{font-size:10.5px;color:#9ca3af;margin-bottom:5px;font-weight:600;line-height:1.5;}
+      .info .name{font-weight:800;font-size:14px;color:${accent};line-height:1.5;margin-bottom:3px;}
+      .info .line{font-size:11px;color:#4b5563;margin-top:3px;line-height:1.75;}
       .info .line b{color:${accent};font-weight:700;}
 
-      .sec-title{font-size:13px;font-weight:800;color:${primary};border-right:4px solid ${secondary};padding-right:10px;margin:16px 0 8px;}
+      .sec-title{font-size:13.5px;font-weight:800;color:${primary};border-right:4px solid ${secondary};padding-right:10px;margin:16px 0 8px;line-height:1.5;}
 
       .item{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff;margin-bottom:10px;}
-      .ihead{background:linear-gradient(135deg,${primary}0d,${secondary}14);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eef0f3;}
-      .it{display:flex;gap:10px;align-items:center;font-weight:800;font-size:13px;color:${accent};}
-      .ino{background:${primary};color:#fff;padding:3px 10px;border-radius:6px;font-size:10.5px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;}
-      .iqty{font-size:11.5px;color:${primary};font-weight:800;}
-      .idesc{padding:9px 12px 0;font-size:11px;color:#4b5563;}
-      .specs{padding:8px 12px 4px;display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;font-size:11px;color:#374151;}
-      .srow{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dotted #eef0f3;padding:3px 0;}
+      .ihead{background:linear-gradient(135deg,${primary}0d,${secondary}14);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid #eef0f3;}
+      .it{display:flex;gap:10px;align-items:center;font-weight:800;font-size:13px;color:${accent};line-height:1.5;min-width:0;flex:1;}
+      .it .t{overflow:hidden;text-overflow:ellipsis;}
+      /* Item badge: fixed height, inline-flex centering. Cairo font (NOT
+         Segoe) so "بند" joins correctly. Number isolated LTR. */
+      .ino{background:${primary};color:#fff;padding:0 10px;height:22px;min-width:56px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:5px;line-height:1;white-space:nowrap;flex-shrink:0;}
+      .ino .n{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;}
+      .iqty{font-size:11.5px;color:${primary};font-weight:800;white-space:nowrap;flex-shrink:0;line-height:1.5;}
+      .idesc{padding:9px 12px 0;font-size:11px;color:#4b5563;line-height:1.7;}
+      .specs{padding:10px 12px 6px;display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:11px;color:#374151;}
+      .srow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px dotted #eef0f3;padding:4px 0;line-height:1.6;}
       .srow.full{grid-column:1/-1;}
-      .srow .k{color:#9ca3af;}
-      .srow .v{font-weight:600;color:#1f2937;}
+      .srow .k{color:#9ca3af;flex-shrink:0;}
+      .srow .v{font-weight:600;color:#1f2937;text-align:left;word-break:break-word;}
       .price-tbl{width:100%;border-top:1px dashed #e5e7eb;margin-top:6px;font-size:11.5px;border-collapse:collapse;}
-      .price-tbl td{padding:9px 12px;}
-      .price-tbl .lbl{color:#9ca3af;font-size:10px;}
-      .price-tbl .val{font-weight:700;color:${accent};}
-      .price-tbl .grand{color:${primary};font-weight:800;font-size:13.5px;}
-      .item-notes{margin:0 12px 10px;padding:6px 10px;background:#f9fafb;border-right:2px solid ${secondary};font-size:10.5px;color:#4b5563;border-radius:4px;}
-      .internal{margin:0 12px 12px;background:#fefce8;border:1px dashed #d4b34a;border-radius:8px;padding:8px 12px;}
-      .internal .it-t{font-size:11px;font-weight:800;color:#7c5b12;margin-bottom:5px;}
+      .price-tbl td{padding:10px 12px;vertical-align:middle;}
+      .price-tbl .lbl{color:#9ca3af;font-size:10px;margin-bottom:3px;line-height:1.4;}
+      .price-tbl .val{font-weight:700;color:${accent};line-height:1.5;}
+      .price-tbl .grand{color:${primary};font-weight:800;font-size:14px;}
+      .item-notes{margin:0 12px 10px;padding:7px 10px;background:#f9fafb;border-right:2px solid ${secondary};font-size:10.5px;color:#4b5563;border-radius:4px;line-height:1.75;}
+      .internal{margin:0 12px 12px;background:#fefce8;border:1px dashed #d4b34a;border-radius:8px;padding:9px 12px;}
+      .internal .it-t{font-size:11px;font-weight:800;color:#7c5b12;margin-bottom:6px;line-height:1.5;}
       .internal table{width:100%;font-size:10.5px;border-collapse:collapse;}
-      .internal td{padding:2px 0;color:#7c5b12;}
+      .internal td{padding:3px 0;color:#7c5b12;line-height:1.6;}
       .internal td:last-child{text-align:left;font-weight:700;}
-      .internal .sm{font-size:10px;color:#7c5b12;margin-top:5px;}
+      .internal .sm{font-size:10px;color:#7c5b12;margin-top:5px;line-height:1.6;}
 
       .end-block{margin-top:12px;}
       .totals{display:flex;justify-content:flex-end;margin-top:12px;}
       .tbox{min-width:340px;max-width:360px;}
-      .tr{display:flex;justify-content:space-between;padding:7px 12px;font-size:12px;border-bottom:1px dotted #e5e7eb;}
+      .tr{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:12px;border-bottom:1px dotted #e5e7eb;line-height:1.5;}
       .tr .k{color:#6b7280;}
       .tr .v{font-weight:700;color:${accent};}
       .tr.disc .v{color:#b91c1c;}
-      .tr-final{background:linear-gradient(135deg,${primary},${secondary});color:#fff;padding:14px 18px;border-radius:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08);}
-      .tr-final .k{font-size:11.5px;opacity:.92;}
+      .tr-final{background:linear-gradient(135deg,${primary},${secondary});color:#fff;padding:14px 18px;border-radius:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08);line-height:1.5;}
+      .tr-final .k{font-size:11.5px;opacity:.95;}
       .tr-final .v{font-size:20px;font-weight:800;}
 
       .block{border:1px solid #eef0f3;border-radius:8px;padding:10px 14px;background:#fff;margin-top:8px;}
-      .block .body{font-size:10.5px;color:#4b5563;line-height:1.75;}
-      .bank{background:#faf7f6;border:1px solid #eee;border-radius:8px;padding:10px 14px;font-size:10.5px;color:#374151;margin-top:8px;}
+      .block .body{font-size:10.5px;color:#4b5563;line-height:1.9;}
+      .bank{background:#faf7f6;border:1px solid #eee;border-radius:8px;padding:10px 14px;font-size:10.5px;color:#374151;margin-top:8px;line-height:1.75;}
       .signrow{display:flex;justify-content:space-between;gap:18px;margin-top:10px;}
-      .signrow .sbox{flex:1;border:1px dashed #d1d5db;border-radius:8px;padding:14px;text-align:center;font-size:10.5px;color:#6b7280;min-height:70px;}
+      .signrow .sbox{flex:1;border:1px dashed #d1d5db;border-radius:8px;padding:14px;text-align:center;font-size:10.5px;color:#6b7280;min-height:70px;line-height:1.7;}
 
-      .foot{border-top:2px solid ${primary};padding-top:10px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#6b7280;}
+      .foot{border-top:2px solid ${primary};padding-top:10px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#6b7280;line-height:1.75;}
       .foot .r img{width:56px;height:56px;}
     </style>
 
@@ -441,8 +449,8 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
       doc.querySelectorAll("style").forEach((s) => { if (!el.contains(s)) s.parentNode?.removeChild(s); });
       const reset = doc.createElement("style");
       reset.textContent = `:root,html,body{color-scheme:light !important;background:#fff !important;color:#1f2937 !important;}
-        *{font-family:'Cairo','Noto Kufi Arabic','Tajawal','Segoe UI',Arial,sans-serif !important;}
-        .num,.money{font-family:'Cairo','Segoe UI',Arial,sans-serif !important;}`;
+        *{font-family:'Cairo','Noto Kufi Arabic','Tajawal','Segoe UI',Arial,sans-serif !important;letter-spacing:0 !important;}
+        .num,.money{font-variant-numeric:tabular-nums !important;font-feature-settings:"tnum" !important;}`;
       doc.head.appendChild(reset);
     },
   });
