@@ -31,12 +31,31 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [greetingName, setGreetingName] = useState<string | null>(null);
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [msgVisible, setMsgVisible] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+      if (data.session) {
+        const u = data.session.user;
+        const name = (u.user_metadata?.full_name as string) || (u.email ? u.email.split("@")[0] : null);
+        setGreetingName(name);
+      }
     });
-  }, [navigate]);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMsgVisible(false);
+      const t = setTimeout(() => {
+        setMsgIndex((i) => (i + 1) % TEAM_MESSAGES.length);
+        setMsgVisible(true);
+      }, 500);
+      return () => clearTimeout(t);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
