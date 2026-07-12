@@ -6,8 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { useBrand } from "@/lib/brand";
+
+const TEAM_MESSAGES = [
+  "عرض السعر مش مجرد رقم… ده أول انطباع عن جودة السويدي",
+  "كل بند محسوب وكل عرض منظم وكل عميل يستلم صورة تليق باسم الشركة",
+  "منصة واحدة لفريق واحد وطريقة عمل أوضح",
+  "جهّز عرضك بدقة وخلّي العميل يشوف الاحتراف من أول ملف",
+  "من أول الخامة لحد الـ PDF كل التفاصيل تحت السيطرة",
+  "نفس الجودة اللي بنطبع بيها نعرض بيها أسعارنا",
+  "عروض أسعار أسرع لفريق مبيعات أقوى",
+  "تنظيم داخلي أقوى يعني تجربة عميل أفضل",
+];
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "تسجيل الدخول — Medhat Elsewedy Printhouse" }] }),
