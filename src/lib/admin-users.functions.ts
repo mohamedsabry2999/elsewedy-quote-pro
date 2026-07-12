@@ -150,7 +150,9 @@ export const savePermissionsFn = createServerFn({ method: "POST" })
     const isOwnerTarget = (target?.email ?? "").toLowerCase() === OWNER_EMAIL;
 
     if (data.profile) {
-      const patch: Record<string, unknown> = {};
+      const patch: Parameters<typeof supabaseAdmin.from<"profiles">>[0] extends never ? never : {
+        full_name?: string; phone?: string | null; department?: string | null; internal_notes?: string | null; is_suspended?: boolean;
+      } = {};
       if (data.profile.full_name !== undefined) patch.full_name = data.profile.full_name;
       if (data.profile.phone !== undefined) patch.phone = data.profile.phone;
       if (data.profile.department !== undefined) patch.department = data.profile.department;
