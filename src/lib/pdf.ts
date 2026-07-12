@@ -4,8 +4,6 @@ import html2canvas from "html2canvas";
 import QRCode from "qrcode";
 import { currency, dateAr, number, percent } from "./format";
 import type { BrandSettings } from "./brand";
-import { currency, dateAr, number, percent } from "./format";
-import type { BrandSettings } from "./brand";
 
 export interface QuotationPdfInput {
   quotation: any;
