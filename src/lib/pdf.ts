@@ -257,6 +257,12 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     </div>
   `;
 
+  // Isolate from app CSS (Tailwind v4 uses oklch which html2canvas cannot parse).
+  container.style.position = "fixed";
+  container.style.left = "-10000px";
+  container.style.top = "0";
+  container.style.zIndex = "-1";
+  container.style.colorScheme = "light";
   document.body.appendChild(container);
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
   await pdf.html(container, {
@@ -265,6 +271,28 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     width: 555, windowWidth: 800,
     autoPaging: "text",
     margin: [30, 20, 30, 20],
+    html2canvas: {
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      scale: 2,
+      logging: false,
+      onclone: (clonedDoc: Document) => {
+        // Remove ALL app stylesheets so oklch/oklab CSS variables never reach html2canvas.
+        clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach((el) => {
+          // Preserve our inline <style> that lives INSIDE the cloned container.
+          if (!container.contains(el) && !clonedDoc.body.contains(el.closest("[dir='rtl']") as Node | null)) {
+            el.parentNode?.removeChild(el);
+          }
+        });
+        // Neutralize inherited CSS custom properties that resolve to oklch on :root/body.
+        const reset = clonedDoc.createElement("style");
+        reset.textContent = `
+          :root, html, body { color-scheme: light !important; background: #ffffff !important; color: #1a1a1a !important; }
+          :root * { --tw-ring-color: transparent; }
+        `;
+        clonedDoc.head.appendChild(reset);
+      },
+    } as any,
   });
   document.body.removeChild(container);
 
