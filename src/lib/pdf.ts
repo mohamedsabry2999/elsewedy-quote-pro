@@ -420,10 +420,21 @@ export async function generateQuotationPdf(input: QuotationPdfInput): Promise<Bl
     logging: false,
     windowWidth: 800,
     onclone: (doc: Document, el: HTMLElement) => {
-      doc.querySelectorAll('link[rel="stylesheet"]').forEach((l) => l.parentNode?.removeChild(l));
+      // Strip ONLY app/theme stylesheets. KEEP Google Fonts (Cairo) — removing
+      // it causes html2canvas to fall back to a generic font that breaks
+      // Arabic shaping (ر / ب / ي get dropped or replaced), producing text
+      // like "قم عرض" instead of "رقم عرض" and "شد" instead of "بند".
+      doc.querySelectorAll('link[rel="stylesheet"]').forEach((l) => {
+        const href = (l as HTMLLinkElement).href || "";
+        if (!/fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(href)) {
+          l.parentNode?.removeChild(l);
+        }
+      });
       doc.querySelectorAll("style").forEach((s) => { if (!el.contains(s)) s.parentNode?.removeChild(s); });
       const reset = doc.createElement("style");
-      reset.textContent = `:root,html,body{color-scheme:light !important;background:#fff !important;color:#1f2937 !important;}`;
+      reset.textContent = `:root,html,body{color-scheme:light !important;background:#fff !important;color:#1f2937 !important;}
+        *{font-family:'Cairo','Noto Kufi Arabic','Tajawal','Segoe UI',Arial,sans-serif !important;}
+        .num,.money{font-family:'Cairo','Segoe UI',Arial,sans-serif !important;}`;
       doc.head.appendChild(reset);
     },
   });
