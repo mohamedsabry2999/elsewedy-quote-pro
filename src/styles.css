@@ -167,3 +167,16 @@
 @utility shadow-card {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -4px rgb(0 0 0 / 0.06);
 }
+
+#lovable-badge,
+[id="lovable-badge"],
+a[href*="lovable.dev"]:has(svg),
+div[class*="lovable"][class*="badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
